@@ -13,13 +13,13 @@ const RsEventsType = {
   AUTHSSL_CONNECTION_AUTENTICATION: 3,
 
   // @see pqissl
-  PEER_CONNECTION: 4,
+  PEER_STATE: 4,
 
   // @see RsGxsChanges, used also in @see RsGxsBroadcast
   GXS_CHANGES: 5,
 
   // Emitted when a peer state changes, @see RsPeers
-  PEER_STATE_CHANGED: 6,
+  _________UNUSED___001_: 6,
 
   // @see RsMailStatusEvent
   MAIL_STATUS: 7,
@@ -45,8 +45,8 @@ const RsEventsType = {
   // @see RsFiles
   FILE_TRANSFER: 14,
 
-  // @see RsMsgs
-  CHAT_MESSAGE: 15,
+  // @see RsChats
+  CHAT_SERVICE: 15,
 
   // @see rspeers.h
   NETWORK: 16,
@@ -55,7 +55,7 @@ const RsEventsType = {
   MAIL_TAG: 17,
 
   /** Emitted to update library clients about file hashing being completed */
-  FILE_HASHING_COMPLETED: 20,
+  _________UNUSED___002_: 20,
 
   // @see rspeers.h
   TOR_MANAGER: 21,
@@ -169,7 +169,7 @@ function deeperIfExist(map, key, action) {
 
 const eventQueue = {
   events: {
-    [RsEventsType.CHAT_MESSAGE]: {
+    [RsEventsType.CHAT_SERVICE]: {
       // Chat-Messages
       types: {
         //                #define RS_CHAT_TYPE_PUBLIC  1

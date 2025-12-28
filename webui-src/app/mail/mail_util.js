@@ -5,7 +5,7 @@ const widget = require('widgets');
 const peopleUtil = require('people/people_util');
 const compose = require('mail/mail_compose');
 
-// rsmsgs.h
+// rsmail.h
 const RS_MSG_BOXMASK = 0x000f;
 
 const RS_MSG_INBOX = 0x00;
@@ -52,14 +52,14 @@ const MessageSummary = () => {
   let fromUserInfo;
   function starMessage(e) {
     isStarred = !isStarred;
-    rs.rsJsonApiRequest('/rsMsgs/MessageStar', { msgId: details.msgId, mark: isStarred });
+    rs.rsJsonApiRequest('/rsMail/MessageStar', { msgId: details.msgId, mark: isStarred });
     // Stop event bubbling, both functions for supporting IE & FF
     e.stopImmediatePropagation();
     e.preventDefault();
   }
   return {
     oninit: (v) => {
-      rs.rsJsonApiRequest('/rsMsgs/getMessage', {
+      rs.rsJsonApiRequest('/rsMail/getMessage', {
         msgId: v.attrs.details.msgId,
       })
         .then((res) => {
@@ -175,8 +175,8 @@ const MessageView = () => {
     files: [],
   };
   function deleteMail() {
-    rs.rsJsonApiRequest('/rsMsgs/MessageToTrash', { msgId: MailData.msgId, bTrash: true });
-    rs.rsJsonApiRequest('/rsMsgs/MessageDelete', { msgId: MailData.msgId }).then((res) => {
+    rs.rsJsonApiRequest('/rsMail/MessageToTrash', { msgId: MailData.msgId, bTrash: true });
+    rs.rsJsonApiRequest('/rsMail/MessageDelete', { msgId: MailData.msgId }).then((res) => {
       widget.popupMessage(
         m('.widget', [
           m('.widget__heading', m('h3', res.body.retval ? 'Success' : 'Error')),
@@ -195,7 +195,7 @@ const MessageView = () => {
 
   return {
     oninit: async (v) => {
-      const res = await rs.rsJsonApiRequest('/rsMsgs/getMessage', {
+      const res = await rs.rsJsonApiRequest('/rsMail/getMessage', {
         msgId: v.attrs.msgId,
       });
       if (res.body.retval) {

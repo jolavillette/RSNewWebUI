@@ -6,7 +6,7 @@ const peopleUtil = require('people/people_util');
 
 function loadLobbyDetails(id, apply) {
   rs.rsJsonApiRequest(
-    '/rsMsgs/getChatLobbyInfo',
+    '/rsChats/getChatLobbyInfo',
     {
       id,
     },
@@ -45,7 +45,7 @@ const ChatRoomsModel = {
     // TODO: this doesn't preserve id of rooms,
     // use regex on response to extract ids.
     rs.rsJsonApiRequest(
-      '/rsMsgs/getListOfNearbyChatLobbies',
+      '/rsChats/getListOfNearbyChatLobbies',
       {},
       (data) => (ChatRoomsModel.allRooms = sortLobbies(data.public_lobbies))
     );
@@ -53,7 +53,7 @@ const ChatRoomsModel = {
   loadSubscribedRooms(after = null) {
     // ChatRoomsModel.subscribedRooms = {};
     rs.rsJsonApiRequest(
-      '/rsMsgs/getChatLobbyList',
+      '/rsChats/getChatLobbyList',
       {},
       // JS uses double precision numbers of 64 bit. It is equivalent
       // to 53 bits of precision. All large precision ints will
@@ -126,7 +126,7 @@ const ChatLobbyModel = {
   setupAction: (lobbyId, nick) => {},
   setIdentity(lobbyId, nick) {
     rs.rsJsonApiRequest(
-      '/rsMsgs/setIdentityForChatLobby',
+      '/rsChats/setIdentityForChatLobby',
       {},
       () => m.route.set('/chat/:lobby_id', { lobbyId }),
       true,
@@ -138,7 +138,7 @@ const ChatLobbyModel = {
   enterPublicLobby(lobbyId, nick) {
     console.info('joinVisibleChatLobby', nick, '@', lobbyId);
     rs.rsJsonApiRequest(
-      '/rsMsgs/joinVisibleChatLobby',
+      '/rsChats/joinVisibleChatLobby',
       {},
       () => {
         loadLobbyDetails(lobbyId, (info) => {
@@ -157,7 +157,7 @@ const ChatLobbyModel = {
   unsubscribeChatLobby(lobbyId, follow) {
     console.info('unsubscribe lobby', lobbyId);
     rs.rsJsonApiRequest(
-      '/rsMsgs/unsubscribeChatLobby',
+      '/rsChats/unsubscribeChatLobby',
       {},
       () => ChatRoomsModel.loadSubscribedRooms(follow),
       true,
@@ -212,7 +212,7 @@ const ChatLobbyModel = {
   },
   sendMessage(msg, onsuccess) {
     rs.rsJsonApiRequest(
-      '/rsmsgs/sendChat',
+      '/rsChats/sendChat',
       {},
       () => {
         // adding own message to log
@@ -466,7 +466,7 @@ const LayoutSetup = () => {
 };
 
 /*
-    /rsMsgs/initiateDistantChatConnexion
+    /rsChats/initiateDistantChatConnexion
 	 * @param[in] to_pid RsGxsId to start the connection
 	 * @param[in] from_pid owned RsGxsId who start the connection
 	 * @param[out] pid distant chat id
@@ -488,7 +488,7 @@ const LayoutCreateDistant = () => {
               {
                 onclick: () =>
                   rs.rsJsonApiRequest(
-                    '/rsMsgs/initiateDistantChatConnexion',
+                    '/rsChats/initiateDistantChatConnexion',
                     {
                       to_pid: m.route.param('lobby'),
                       from_pid: id,

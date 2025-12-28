@@ -20,13 +20,13 @@ async function handleSubmit(tagId) {
   if (tagNameAlreadyExists) {
     alert('Tag Name Already Exists');
   } else {
-    rs.rsJsonApiRequest('/rsMsgs/setMessageTagType', {
+    rs.rsJsonApiRequest('/rsMail/setMessageTagType', {
       tagId: msgTagObj.tagId,
       text: msgTagObj.tagName,
       rgb_color: parseInt(msgTagObj.tagColor.substring(1), 16),
     });
     modalContainer.style.display = 'none';
-    rs.rsJsonApiRequest('/rsMsgs/getMessageTagTypes').then((res) => (tagArr = res.body.tags.types));
+    rs.rsJsonApiRequest('/rsMail/getMessageTagTypes').then((res) => (tagArr = res.body.tags.types));
   }
 }
 
@@ -68,10 +68,10 @@ const Mail = () => {
   let distantMessagingPermissionFlag = 0;
   return {
     oninit: () => {
-      rs.rsJsonApiRequest('/rsMsgs/getMessageTagTypes').then(
+      rs.rsJsonApiRequest('/rsMail/getMessageTagTypes').then(
         (res) => (tagArr = res.body.tags.types)
       );
-      rs.rsJsonApiRequest('/rsMsgs/getDistantMessagingPermissionFlags').then(
+      rs.rsJsonApiRequest('/rsMail/getDistantMessagingPermissionFlags').then(
         (res) => (distantMessagingPermissionFlag = res.body.retval)
       );
     },
@@ -87,7 +87,7 @@ const Mail = () => {
                 value: distantMessagingPermissionFlag,
                 oninput: (e) => (distantMessagingPermissionFlag = e.target.value),
                 onchange: () => {
-                  rs.rsJsonApiRequest('/rsMsgs/setDistantMessagingPermissionFlags', {
+                  rs.rsJsonApiRequest('/rsMail/setDistantMessagingPermissionFlags', {
                     flags: parseInt(distantMessagingPermissionFlag),
                   });
                 },
@@ -164,7 +164,7 @@ const Mail = () => {
                           'button.red',
                           {
                             onclick: () => {
-                              rs.rsJsonApiRequest('/rsMsgs/removeMessageTagType', {
+                              rs.rsJsonApiRequest('/rsMail/removeMessageTagType', {
                                 tagId: tag.key,
                               }).then((res) => {
                                 if (res.body.retval)
