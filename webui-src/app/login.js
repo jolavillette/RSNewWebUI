@@ -16,7 +16,7 @@ const verifyLogin = async function (uname, passwd, url, displayAuthError = true)
   rs.setKeys('', '', url, false);
   rs.logon(
     loginHeader,
-    displayAuthError ? displayErrorMessage : () => {},
+    displayAuthError ? displayErrorMessage : () => { },
     displayErrorMessage,
     () => {
       rs.setKeys(uname, passwd, url);
@@ -33,9 +33,9 @@ function loginComponent() {
     urlParams.get('Url') || window.location.protocol === 'file:'
       ? 'http://127.0.0.1:9092'
       : window.location.protocol +
-        '//' +
-        window.location.host +
-        window.location.pathname.replace('/index.html', '');
+      '//' +
+      window.location.host +
+      window.location.pathname.replace('/index.html', '');
   let withOptions = false;
 
   const logo = () =>
@@ -83,7 +83,14 @@ function loginComponent() {
     m('a', { onclick: () => (withOptions = !withOptions) }, `${action} options`);
 
   const textError = () => m('p.error[id=error]');
+
   return {
+    oninit: () => {
+      if (rs.loginKey.isVerified && rs.loginKey.username && rs.loginKey.passwd) {
+        console.info('[RS-DEBUG] Auto-verifying persistent login...');
+        verifyLogin(rs.loginKey.username, rs.loginKey.passwd, rs.loginKey.url, false);
+      }
+    },
     view: () => {
       return m(
         'form.login-page',
@@ -91,14 +98,14 @@ function loginComponent() {
           '.login-container',
           withOptions
             ? [
-                logo(),
-                m('.extra', [m('label', 'Username:'), m('br'), inputName()]),
-                m('.extra', [m('label', 'Password:'), m('br'), inputPassword()]),
-                m('.extra', [m('label', 'Url:'), m('br'), inputUrl()]),
-                linkOptions('hide'),
-                buttonLogin(),
-                textError(),
-              ]
+              logo(),
+              m('.extra', [m('label', 'Username:'), m('br'), inputName()]),
+              m('.extra', [m('label', 'Password:'), m('br'), inputPassword()]),
+              m('.extra', [m('label', 'Url:'), m('br'), inputUrl()]),
+              linkOptions('hide'),
+              buttonLogin(),
+              textError(),
+            ]
             : [logo(), inputPassword(), linkOptions('show'), buttonLogin(), textError()]
         )
       );

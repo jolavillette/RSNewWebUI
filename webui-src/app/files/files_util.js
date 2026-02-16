@@ -167,9 +167,10 @@ const File = () => {
   let chunkStrat;
   const chunkStrats = {
     // rstypes.h :: 366
-    0: 'Streaming', // CHUNK_STRATEGY_STREAMING
+    0: 'Sequential', // CHUNK_STRATEGY_SEQUENTIAL
     1: 'Random', // CHUNK_STRATEGY_RANDOM
     2: 'Progressive', // CHUNK_STRATEGY_PROGRESSIVE
+    3: 'Streaming', // CHUNK_STRATEGY_STREAMING
   };
   function fileCancel(hash) {
     rs.rsJsonApiRequest('/rsFiles/FileCancel', { hash }).then((res) =>
@@ -207,22 +208,22 @@ const File = () => {
         m('.file-view__heading', [
           m('h6', info.fname),
           chunkStrat !== undefined &&
-            direction === 'down' && [
-              m('.file-view__heading-chunk', [
-                m('label[for=chunkTag]', 'Set Chunk Strategy: '),
-                m('select[id=chunkTag]', { value: chunkStrat, onchange: changeChunkStrategy }, [
-                  Object.keys(chunkStrats).map((strat) =>
-                    m('option', { value: strat }, chunkStrats[strat])
-                  ),
-                ]),
+          direction === 'down' && [
+            m('.file-view__heading-chunk', [
+              m('label[for=chunkTag]', 'Set Chunk Strategy: '),
+              m('select[id=chunkTag]', { value: chunkStrat, onchange: changeChunkStrategy }, [
+                Object.keys(chunkStrats).map((strat) =>
+                  m('option', { value: strat }, chunkStrats[strat])
+                ),
               ]),
-            ],
+            ]),
+          ],
         ]),
         m('.file-view__body', [
           m(
             '.file-view__body-progress',
             direction === 'down' &&
-              m(ProgressBar, { rate: (transferred / info.size.xint64) * 100, chunksInfo })
+            m(ProgressBar, { rate: (transferred / info.size.xint64) * 100, chunksInfo })
           ),
           m('.file-view__body-details', [
             m('.file-view__body-details-stat', [
@@ -239,10 +240,10 @@ const File = () => {
                 `${rs.formatBytes(info.tfRate * 1024)}/s`,
               ]),
               direction === 'down' &&
-                m('span', { title: 'time remaining' }, [
-                  m('i.fas.fa-clock'),
-                  calcRemainingTime(info.size.xint64 - transferred, info.tfRate),
-                ]),
+              m('span', { title: 'time remaining' }, [
+                m('i.fas.fa-clock'),
+                calcRemainingTime(info.size.xint64 - transferred, info.tfRate),
+              ]),
               m('span', { title: 'peers' }, [m('i.fas.fa-users'), info.peers.length]),
             ]),
             m(

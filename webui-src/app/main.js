@@ -1,6 +1,7 @@
 const m = require('mithril');
 
 const login = require('login');
+const rs = require('rswebui');
 const home = require('home');
 const network = require('network/network');
 const people = require('people/people_resolver');
@@ -40,20 +41,40 @@ const navbar = () => {
               src: 'images/retroshare.svg',
               alt: 'retroshare_icon',
             }),
-            m('h5', 'Retroshare'),
+            m('.nav-menu__logo-text', [
+              m('h5', 'RetroShare'),
+              m('.webui-version-box', [
+                m('span.webui-version', 'v44'),
+                m('i.fas.fa-sync-alt.refresh-icon', {
+                  onclick: () => window.location.reload(true),
+                  title: 'Force reload application',
+                }),
+              ]),
+            ]),
           ]),
           m('.nav-menu__box', [
-            Object.keys(vnode.attrs.links).map((linkName, i) => {
+            Object.keys(vnode.attrs.links).map((linkName) => {
               const active = m.route.get().split('/')[1] === linkName;
               return m(
                 m.route.Link,
                 {
                   href: vnode.attrs.links[linkName],
-                  class: 'item' + (active ? ' item-selected' : ''),
+                  class: (active ? 'active-link' : '') + ' item',
                 },
-                [navIcon[linkName], m('p', linkName)]
+                [
+                  navIcon[linkName],
+                  m('span', linkName.charAt(0).toUpperCase() + linkName.slice(1)),
+                ]
               );
             }),
+            m(
+              'a.logout-link.item',
+              {
+                onclick: () => rs.logout(),
+                style: { marginTop: 'auto', cursor: 'pointer' },
+              },
+              [m('i.fas.fa-sign-out-alt'), m('span', 'Logout')]
+            ),
             m(
               'button.toggle-nav',
               {
@@ -92,7 +113,10 @@ const Layout = () => {
 
 m.route(document.getElementById('main'), '/', {
   '/': {
-    render: () => m(login),
+    render: () => {
+      console.info('[RS-DEBUG] Routing to / (Login)');
+      return m(login);
+    },
   },
   '/home': {
     render: () => m(Layout, m(home)),

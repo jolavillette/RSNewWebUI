@@ -14,73 +14,99 @@ const Data = {
   Threads: {},
   ParentThreads: {},
   ParentThreadMap: {},
+  loading: new Set(),
 };
 
 async function updatedisplayforums(keyid, details = {}) {
-  const res = await rs.rsJsonApiRequest('/rsgxsforums/getForumsInfo', {
-    forumIds: [keyid], // keyid: Forumid
-  });
-  details = res.body.forumsInfo[0];
-  Data.DisplayForums[keyid] = {
-    // struct for a forum
-    name: details.mMeta.mGroupName,
-    author: details.mMeta.mAuthorId,
-    isSearched: true,
-    description: details.mDescription,
-    isSubscribed:
-      details.mMeta.mSubscribeFlags === GROUP_SUBSCRIBE_SUBSCRIBED ||
-      details.mMeta.mSubscribeFlags === GROUP_MY_FORUM,
-    activity: details.mMeta.mLastPost,
-    created: details.mMeta.mPublishTs,
-  };
-  if (Data.Threads[keyid] === undefined) {
-    Data.Threads[keyid] = {};
-  }
-  const res2 = await rs.rsJsonApiRequest('/rsgxsforums/getForumMsgMetaData', {
-    forumId: keyid,
-  });
-  if (res2.body.retval) {
-    res2.body.msgMetas.map(async (thread) => {
-      const res3 = await rs.rsJsonApiRequest('/rsgxsforums/getForumContent', {
-        forumId: keyid,
-        msgsIds: [thread.mMsgId],
-      });
+  if (Data.loading.has(keyid)) return;
+  Data.loading.add(keyid);
 
-      if (
-        res3.body.retval &&
-        (Data.Threads[keyid][thread.mOrigMsgId] === undefined ||
-          Data.Threads[keyid][thread.mOrigMsgId].thread.mMeta.mPublishTs.xint64 <
-            thread.mPublishTs.xint64)
-        // here we get the latest edited thread for each thread by comparing the publish time
-      ) {
-        Data.Threads[keyid][thread.mOrigMsgId] = { thread: res3.body.msgs[0], showReplies: false };
-        if (
-          Data.Threads[keyid][thread.mOrigMsgId] &&
-          Data.Threads[keyid][thread.mOrigMsgId].thread.mMeta.mMsgStatus === THREAD_UNREAD
-        ) {
-          let parent = Data.Threads[keyid][thread.mOrigMsgId].thread.mMeta.mParentId;
-          while (Data.Threads[keyid][parent]) {
-            // to mark all parent threads of an inread thread
-            Data.Threads[keyid][parent].thread.mMeta.mMsgStatus = THREAD_UNREAD;
-            parent = Data.Threads[keyid][parent].thread.mMeta.mParentId;
-          }
-        }
-
-        if (Data.ParentThreads[keyid] === undefined) {
-          Data.ParentThreads[keyid] = {};
-        }
-        if (thread.mThreadId === thread.mParentId) {
-          // top level thread.
-          Data.ParentThreads[keyid][thread.mOrigMsgId] =
-            Data.Threads[keyid][thread.mOrigMsgId].thread.mMeta;
-        } else {
-          if (Data.ParentThreadMap[thread.mParentId] === undefined) {
-            Data.ParentThreadMap[thread.mParentId] = {};
-          }
-          Data.ParentThreadMap[thread.mParentId][thread.mOrigMsgId] = thread;
-        }
-      }
+  try {
+    const res = await rs.rsJsonApiRequest('/rsgxsforums/getForumsInfo', {
+      forumIds: [keyid], // keyid: Forumid
     });
+    if (res && res.body && res.body.forumsInfo && res.body.forumsInfo.length > 0) {
+      details = res.body.forumsInfo[0];
+      Data.DisplayForums[keyid] = {
+        // struct for a forum
+        name: details.mMeta.mGroupName,
+        author: details.mMeta.mAuthorId,
+        isSearched: true,
+        description: details.mDescription,
+        isSubscribed:
+          details.mMeta.mSubscribeFlags === GROUP_SUBSCRIBE_SUBSCRIBED ||
+          details.mMeta.mSubscribeFlags === GROUP_MY_FORUM,
+        activity: details.mMeta.mLastPost,
+        created: details.mMeta.mPublishTs,
+      };
+      if (Data.Threads[keyid] === undefined) {
+        Data.Threads[keyid] = {};
+      }
+      const res2 = await rs.rsJsonApiRequest('/rsgxsforums/getForumMsgMetaData', {
+        forumId: keyid,
+      });
+      if (res2 && res2.body && res2.body.retval && res2.body.msgMetas && res2.body.msgMetas.length > 0) {
+        const ids = res2.body.msgMetas.map((thread) => thread.mMsgId);
+
+        // Chunking: process messages in batches of 100
+        const chunkSize = 100;
+        const chunks = [];
+        for (let i = 0; i < ids.length; i += chunkSize) {
+          chunks.push(ids.slice(i, i + chunkSize));
+        }
+
+        // Process chunks in parallel to speed up loading
+        await Promise.all(
+          chunks.map(async (chunk) => {
+            const res3 = await rs.rsJsonApiRequest('/rsgxsforums/getForumContent', {
+              forumId: keyid,
+              msgsIds: chunk,
+            });
+
+            if (res3 && res3.body && res3.body.retval && res3.body.msgs) {
+              res3.body.msgs.forEach((msg) => {
+                const mMeta = msg.mMeta;
+                if (
+                  Data.Threads[keyid][mMeta.mOrigMsgId] === undefined ||
+                  Data.Threads[keyid][mMeta.mOrigMsgId].thread.mMeta.mPublishTs.xint64 <
+                  mMeta.mPublishTs.xint64
+                ) {
+                  Data.Threads[keyid][mMeta.mOrigMsgId] = { thread: msg, showReplies: false };
+                  if (
+                    Data.Threads[keyid][mMeta.mOrigMsgId] &&
+                    Data.Threads[keyid][mMeta.mOrigMsgId].thread.mMeta.mMsgStatus === THREAD_UNREAD
+                  ) {
+                    let parent = Data.Threads[keyid][mMeta.mOrigMsgId].thread.mMeta.mParentId;
+                    while (Data.Threads[keyid][parent]) {
+                      Data.Threads[keyid][parent].thread.mMeta.mMsgStatus = THREAD_UNREAD;
+                      parent = Data.Threads[keyid][parent].thread.mMeta.mParentId;
+                    }
+                  }
+
+                  if (Data.ParentThreads[keyid] === undefined) {
+                    Data.ParentThreads[keyid] = {};
+                  }
+                  if (mMeta.mThreadId === mMeta.mParentId) {
+                    Data.ParentThreads[keyid][mMeta.mOrigMsgId] = mMeta;
+                  } else {
+                    if (Data.ParentThreadMap[mMeta.mParentId] === undefined) {
+                      Data.ParentThreadMap[mMeta.mParentId] = {};
+                    }
+                    Data.ParentThreadMap[mMeta.mParentId][mMeta.mOrigMsgId] = mMeta;
+                  }
+                }
+              });
+              m.redraw(); // Show progress as chunks arrive
+            }
+          })
+        );
+      }
+    }
+  } catch (e) {
+    console.error('[RS-DEBUG] Error updating forum display for:', keyid, e);
+  } finally {
+    Data.loading.delete(keyid);
+    m.redraw(); // Final redraw just in case
   }
 }
 
@@ -114,7 +140,7 @@ const ForumSummary = () => {
       keyid = v.attrs.details.mGroupId;
       updatedisplayforums(keyid);
     },
-    view: (v) => {},
+    view: (v) => { },
   };
 };
 
@@ -125,7 +151,7 @@ const ForumTable = () => {
 };
 const ThreadsTable = () => {
   return {
-    oninit: (v) => {},
+    oninit: (v) => { },
     view: (v) =>
       m('table.threads', [
         m('tr', [m('th', 'Comment'), m('th', 'Date'), m('th', 'Author')]),
@@ -135,7 +161,7 @@ const ThreadsTable = () => {
 };
 const ThreadsReplyTable = () => {
   return {
-    oninit: (v) => {},
+    oninit: (v) => { },
     view: (v) =>
       m('table.threadreply', [
         m('tr', [

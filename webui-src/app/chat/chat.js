@@ -6,36 +6,79 @@ const peopleUtil = require('people/people_util');
 
 function loadLobbyDetails(id, apply) {
   rs.rsJsonApiRequest(
-    '/rsMsgs/getChatLobbyInfo',
+    '/rsChats/getChatLobbyInfo',
     {
       id,
     },
-    (detail) => {
-      if (detail.retval) {
+    (detail, success) => {
+      if (success && detail.retval) {
+        detail.info.chatType = 3; // LOBBY
         apply(detail.info);
+      } else {
+        apply(null);
       }
     },
     true,
     {},
     undefined,
-    // Custom serializer NOTE:
-    // Since id represents 64-bit int(see deserializer note below)
-    // Instead of using JSON.stringify, this function directly
-    // creates a json string manually.
     () => '{"id":' + id + '}'
   );
 }
 
+function loadDistantChatDetails(pid, apply) {
+  // pid is DistantChatPeerId (uint32)
+  rs.rsJsonApiRequest(
+    '/rsChats/getDistantChatStatus',
+    {
+      pid: parseInt(pid),
+    },
+    (detail, success) => {
+      if (success && detail.retval) {
+        // Map to lobby-like structure for UI compatibility
+        const info = detail.info;
+        info.chatType = 4; // DISTANT
+        info.lobby_name = rs.userList.username(info.to_id) || 'Distant Chat ' + pid;
+        info.lobby_topic = 'Private Encrypted Chat';
+        info.gxs_id = info.own_id;
+        info.lobby_id = { xstr64: pid.toString() }; // Mock lobby_id for keying
+        apply(info);
+      } else {
+        console.error('[RS-DEBUG] Failed to load distant chat info for PID:', pid);
+        apply(null);
+      }
+    },
+    true
+  );
+}
+
 function sortLobbies(lobbies) {
-  if (lobbies !== undefined) {
+  if (lobbies !== undefined && lobbies !== null) {
     const list = [...lobbies];
     list.sort((a, b) => a.lobby_name.localeCompare(b.lobby_name));
     return list;
   }
-  // return lobbies; // fallback on reload page in browser, keep undefiend
+  return []; // return empty array instead of undefined
 }
 
 // ***************************** models ***********************************
+
+const MobileState = {
+  showLobbies: false,
+  showUsers: false,
+  toggleLobbies() {
+    this.showLobbies = !this.showLobbies;
+    this.showUsers = false;
+  },
+  toggleUsers() {
+    this.showUsers = !this.showUsers;
+    this.showLobbies = false;
+  },
+  closeAll() {
+    this.showLobbies = false;
+    this.showUsers = false;
+  },
+};
+
 
 const ChatRoomsModel = {
   allRooms: [],
@@ -45,36 +88,69 @@ const ChatRoomsModel = {
     // TODO: this doesn't preserve id of rooms,
     // use regex on response to extract ids.
     rs.rsJsonApiRequest(
-      '/rsMsgs/getListOfNearbyChatLobbies',
+      '/rsChats/getListOfNearbyChatLobbies',
       {},
-      (data) => (ChatRoomsModel.allRooms = sortLobbies(data.public_lobbies))
+      (data) => {
+        if (data && data.public_lobbies) {
+          // Deduplicate by ID to avoid double display if backend returns redundant info
+          const seen = new Set();
+          const uniqueLobbies = data.public_lobbies.filter((lobby) => {
+            const id = lobby.lobby_id.xstr64;
+            if (seen.has(id)) return false;
+            seen.add(id);
+            return true;
+          });
+          ChatRoomsModel.allRooms = sortLobbies(uniqueLobbies);
+        } else {
+          console.warn('[RS-DEBUG] No public lobbies found or malformed response:', data);
+          ChatRoomsModel.allRooms = [];
+        }
+      }
     );
   },
   loadSubscribedRooms(after = null) {
-    // ChatRoomsModel.subscribedRooms = {};
     rs.rsJsonApiRequest(
-      '/rsMsgs/getChatLobbyList',
+      '/rsChats/getChatLobbyList',
       {},
-      // JS uses double precision numbers of 64 bit. It is equivalent
-      // to 53 bits of precision. All large precision ints will
-      // get truncated to an approximation.
-      // This API uses Cpp-style 64 bits for `id`.
-      // So we use the string-value 'xstr64' instead
       (data) => {
-        const ids = data.cl_list.map((lid) => lid.xstr64);
-        ChatRoomsModel.knownSubscrIds = ids;
-        const rooms = {};
-        ids.map((id) =>
-          loadLobbyDetails(id, (info) => {
-            rooms[id] = info;
-            if (Object.keys(rooms).length === ids.length) {
-              // apply rooms to subscribedRooms only after reading all room-details, so sorting all or nothing
-              ChatRoomsModel.subscribedRooms = rooms;
+        if (data && data.cl_list) {
+          // Robust deduplication of IDs
+          const ids = [...new Set(data.cl_list.map((lid) => lid.xstr64))];
+          ChatRoomsModel.knownSubscrIds = ids;
+
+          // Remove stale entries that are no longer in the subscribed list
+          Object.keys(ChatRoomsModel.subscribedRooms).forEach((id) => {
+            if (!ids.includes(id)) {
+              delete ChatRoomsModel.subscribedRooms[id];
             }
-          })
-        );
-        if (after != null) {
-          after();
+          });
+
+          if (ids.length === 0) {
+            ChatRoomsModel.loadPublicRooms();
+            if (after != null) after();
+            m.redraw();
+            return;
+          }
+
+          let count = 0;
+          ids.forEach((id) =>
+            loadLobbyDetails(id, (info) => {
+              if (info) {
+                ChatRoomsModel.subscribedRooms[id] = info;
+              }
+              count++;
+              if (count === ids.length) {
+                ChatRoomsModel.loadPublicRooms(); // Load public rooms after we know all subscribed IDs
+                if (after != null) {
+                  after();
+                }
+                m.redraw();
+              }
+            })
+          );
+        } else {
+          console.warn('[RS-DEBUG] No subscribed lobbies found or malformed response:', data);
+          ChatRoomsModel.loadPublicRooms();
         }
       }
     );
@@ -90,28 +166,32 @@ const ChatRoomsModel = {
  * msg: Message to Display
  */
 const Message = () => {
-  let msg = null; // message to display
-  let text = ''; // extracted text to display
-  let datetime = ''; // date time to display
-  let username = ''; // username to display (later may be linked)
   return {
-    oninit: (vnode) => {
-      console.info('chat Message', vnode);
-      msg = vnode.attrs;
-      datetime = new Date(msg.sendTime * 1000).toLocaleTimeString();
-      username = rs.userList.username(msg.lobby_peer_gxs_id);
-      text = msg.msg
+    view: (vnode) => {
+      const msg = vnode.attrs;
+      const datetime = new Date(msg.sendTime * 1000).toLocaleTimeString();
+      // Handle both HistoryMsg (peerId) and ChatMessage (lobby_peer_gxs_id)
+      const rawGxsId = msg.lobby_peer_gxs_id || msg.peerId;
+      const gxsId =
+        rawGxsId && typeof rawGxsId === 'object' ? rawGxsId.xstr64 : rawGxsId;
+      let username = rs.userList.username(gxsId) || msg.peerName || '???';
+      // If we only have the hex ID, try to fallback to the peerName from the message
+      if (username === gxsId && msg.peerName) {
+        username = msg.peerName;
+      }
+      if (username === gxsId && gxsId && gxsId.length > 12) {
+        username = gxsId.substring(0, 8) + '...';
+      }
+      const text = (msg.msg || msg.message || '')
         .replaceAll('<br/>', '\n')
         .replace(new RegExp('<style[^<]*</style>|<[^>]*>', 'gm'), '');
-      console.info('chat Text', text);
-    },
-    view: () =>
-      m(
+      return m(
         '.message',
         m('span.datetime', datetime),
         m('span.username', username),
         m('span.messagetext', text)
-      ),
+      );
+    },
   };
 };
 
@@ -123,10 +203,72 @@ const ChatLobbyModel = {
   isSubscribed: false,
   messages: [],
   users: [],
-  setupAction: (lobbyId, nick) => {},
+  messageKeys: new Set(),
+  lastLobbyId: null,
+
+  // Helper to generate a unique key for deduplication
+  getMessageKey(msg) {
+    if (msg.msgId && msg.msgId !== 0) return 'id_' + msg.msgId;
+    // Fallback for live messages or history without IDs
+    const text = msg.msg || msg.message || '';
+    return 't_' + msg.sendTime + '_' + text.substring(0, 32);
+  },
+
+  addMessages(newMsgs, scroll = false) {
+    let added = false;
+    newMsgs.forEach((msg) => {
+      const key = this.getMessageKey(msg);
+      if (!this.messageKeys.has(key)) {
+        this.messageKeys.add(key);
+        this.messages.push(m(Message, msg));
+        added = true;
+      }
+    });
+
+    if (added) {
+      this.messages.sort((a, b) => a.attrs.sendTime - b.attrs.sendTime);
+      m.redraw();
+      if (scroll) {
+        setTimeout(() => {
+          const element = document.querySelector('.messages');
+          if (element) {
+            element.scrollTop = element.scrollHeight;
+          }
+        }, 100);
+      }
+    }
+  },
+
+  loadHistory(id, type) {
+    const chatPeerId = {
+      broadcast_status_peer_id: { xstr64: '0' },
+      type: type,
+      peer_id: { xstr64: '0' },
+      distant_chat_id: { xstr64: '0' },
+      lobby_id: { xstr64: '0' },
+    };
+
+    if (type === 3) chatPeerId.lobby_id.xstr64 = id;
+    else if (type === 4) chatPeerId.distant_chat_id = parseInt(id); // DistantChatPeerId is uint32
+    else if (type === 2) chatPeerId.peer_id.xstr64 = id;
+
+    rs.rsJsonApiRequest(
+      '/rsHistory/getMessages',
+      {
+        chatPeerId: chatPeerId,
+        loadCount: 20,
+      },
+      (data, success) => {
+        if (success && data.msgs) {
+          this.addMessages(data.msgs);
+        }
+      }
+    );
+  },
+  setupAction: (lobbyId, nick) => { },
   setIdentity(lobbyId, nick) {
     rs.rsJsonApiRequest(
-      '/rsMsgs/setIdentityForChatLobby',
+      '/rsChats/setIdentityForChatLobby',
       {},
       () => m.route.set('/chat/:lobby_id', { lobbyId }),
       true,
@@ -138,7 +280,7 @@ const ChatLobbyModel = {
   enterPublicLobby(lobbyId, nick) {
     console.info('joinVisibleChatLobby', nick, '@', lobbyId);
     rs.rsJsonApiRequest(
-      '/rsMsgs/joinVisibleChatLobby',
+      '/rsChats/joinVisibleChatLobby',
       {},
       () => {
         loadLobbyDetails(lobbyId, (info) => {
@@ -157,7 +299,7 @@ const ChatLobbyModel = {
   unsubscribeChatLobby(lobbyId, follow) {
     console.info('unsubscribe lobby', lobbyId);
     rs.rsJsonApiRequest(
-      '/rsMsgs/unsubscribeChatLobby',
+      '/rsChats/unsubscribeChatLobby',
       {},
       () => ChatRoomsModel.loadSubscribedRooms(follow),
       true,
@@ -166,35 +308,95 @@ const ChatLobbyModel = {
       () => '{"lobby_id":' + lobbyId + '}'
     );
   },
-  chatId(action) {
-    return { type: 3, lobby_id: { xstr64: m.route.param('lobby') } };
+  chatId() {
+    const type = (this.currentLobby && this.currentLobby.chatType) || 3;
+    const id = this.lastLobbyId || m.route.param('lobby');
+    const cid = {
+      broadcast_status_peer_id: { xstr64: '0' },
+      type: type,
+      peer_id: { xstr64: '0' },
+      distant_chat_id: { xstr64: '0' },
+      lobby_id: { xstr64: '0' },
+    };
+    if (type === 3) cid.lobby_id.xstr64 = id;
+    else if (type === 4) cid.distant_chat_id = parseInt(id);
+    return cid;
   },
   loadLobby(currentlobbyid) {
-    loadLobbyDetails(currentlobbyid, (detail) => {
+    this.lastLobbyId = currentlobbyid;
+
+    const finishLoad = (detail) => {
       this.setupAction = this.setIdentity;
       this.currentLobby = detail;
       this.isSubscribed = true;
       this.lobby_user = rs.userList.username(detail.gxs_id) || '???';
-      const lobbyid = currentlobbyid;
-      // apply existing messages to current lobby view
-      rs.events[15].chatMessages(
-        this.chatId(),
-        rs.events[15],
-        (l) => (this.messages = l.map((msg) => m(Message, msg)))
-      );
-      // register for chatEvents for future messages
+
+      // Reset local state for this lobby
+      this.messages = [];
+      this.messageKeys.clear();
+
+      // Load history first
+      this.loadHistory(currentlobbyid, detail.chatType);
+
+      // Apply existing messages from live cache
+      const cid = this.chatId();
+      rs.events[15].chatMessages(cid, rs.events[15], (l) => {
+        this.addMessages(l);
+      });
+
+      // Register for chatEvents for future messages
+      // Register for chatEvents for future messages
       rs.events[15].notify = (chatMessage) => {
-        if (chatMessage.chat_id.type === 3 && chatMessage.chat_id.lobby_id.xstr64 === lobbyid) {
-          this.messages.push(m(Message, chatMessage));
-          m.redraw();
+        const msgCid = chatMessage.chat_id;
+        console.warn('[RS-DEBUG] Incoming chat msg:', chatMessage, 'Current Type:', detail.chatType, 'LobbyID:', currentlobbyid);
+        let match = false;
+        if (msgCid.type === detail.chatType) {
+          if (detail.chatType === 3) {
+            const clid = msgCid.lobby_id ? (typeof msgCid.lobby_id === 'object' ? msgCid.lobby_id.xstr64 : msgCid.lobby_id) : undefined;
+            if (clid === currentlobbyid) match = true;
+          } else if (detail.chatType === 4) {
+            const dChatId = msgCid.distant_chat_id ? (typeof msgCid.distant_chat_id === 'object' ? msgCid.distant_chat_id.xstr64 : msgCid.distant_chat_id) : undefined;
+            console.warn('[RS-DEBUG] D-Chat check:', dChatId, 'vs', currentlobbyid);
+            if (dChatId == currentlobbyid) match = true; // compare with auto-cast
+          }
+        }
+        if (match) {
+          this.addMessages([chatMessage]);
         }
       };
-      // lookup for chat-user names (only snapshot, we don't get notified about changes of participants)
-      const names = detail.gxs_ids.reduce((a, u) => a.concat(rs.userList.username(u.key)), []);
-      names.sort((a, b) => a.localeCompare(b));
-      this.users = [];
-      names.forEach((name) => (this.users = this.users.concat([m('.user', name)])));
-      return this.users;
+
+      // Lookup for chat-user names (Only for lobbies for now)
+      // Lookup for chat-user names
+      if (detail.gxs_ids) {
+        let names = [];
+        if (Array.isArray(detail.gxs_ids)) {
+          names = detail.gxs_ids.reduce((a, u) => a.concat(rs.userList.username(u.key)), []);
+        } else if (typeof detail.gxs_ids === 'object') {
+          names = Object.keys(detail.gxs_ids).map(key => rs.userList.username(key));
+        }
+        names.sort((a, b) => a.localeCompare(b));
+        this.users = [];
+        names.forEach((name) => (this.users = this.users.concat([m('.user', name)])));
+      } else {
+        this.users = [m('.user', detail.lobby_name)];
+      }
+      m.redraw();
+    };
+
+    // Try determining type
+    loadLobbyDetails(currentlobbyid, (detail) => {
+      if (detail) {
+        finishLoad(detail);
+      } else {
+        // Fallback to Distant Chat
+        loadDistantChatDetails(currentlobbyid, (dDetail) => {
+          if (dDetail) {
+            finishLoad(dDetail);
+          } else {
+            console.error('[RS-DEBUG] Failed to load chat info (Lobby or Distant) for ID:', currentlobbyid);
+          }
+        });
+      }
     });
   },
   loadPublicLobby(currentlobbyid) {
@@ -211,33 +413,25 @@ const ChatLobbyModel = {
     this.users = [];
   },
   sendMessage(msg, onsuccess) {
+    const echoMsg = {
+      chat_id: this.chatId(),
+      msg: msg,
+      sendTime: Math.floor(Date.now() / 1000),
+      lobby_peer_gxs_id: this.lobby_user,
+    };
+    this.addMessages([echoMsg], true);
+
     rs.rsJsonApiRequest(
-      '/rsmsgs/sendChat',
-      {},
-      () => {
-        // adding own message to log
-        rs.events[15].handler(
-          {
-            mChatMessage: {
-              chat_id: this.chatId(),
-              msg,
-              sendTime: new Date().getTime() / 1000,
-              lobby_peer_gxs_id: this.currentLobby.gxs_id,
-            },
-          },
-          rs.events[15]
-        );
-        onsuccess();
+      '/rsChats/sendChat',
+      {
+        id: this.chatId(),
+        msg: msg,
       },
-      true,
-      {},
-      undefined,
-      () =>
-        '{"id":{"type": 3,"lobby_id":' +
-        m.route.param('lobby') +
-        '}, "msg":' +
-        JSON.stringify(msg) +
-        '}'
+      (data, success) => {
+        if (success) {
+          onsuccess();
+        }
+      }
     );
   },
   selected(info, selName, defaultName) {
@@ -263,23 +457,13 @@ const ChatLobbyModel = {
 // ************************* views ****************************
 
 const Lobby = () => {
-  let info = {};
-  let tagname = '';
-  let onclick = (e) => {};
-  let lobbytagname = '';
   return {
-    oninit: (v) => {
-      info = v.attrs.info;
-      tagname = v.attrs.tagname;
-      onclick = v.attrs.onclick || ((e) => {});
-      lobbytagname = v.attrs.lobbytagname || 'mainname';
-    },
-    view: (v) => {
+    view: (vnode) => {
+      const { info, tagname, onclick, lobbytagname = 'mainname' } = vnode.attrs;
       return m(
         ChatLobbyModel.selected(info, '.selected-lobby', tagname),
         {
           key: info.lobby_id.xstr64,
-
           onclick,
         },
         [
@@ -343,7 +527,7 @@ const PublicLeftLobbies = {
     return [
       m('h5.lefttitle', 'public:'),
       m(LobbyList, {
-        rooms: Object.values(ChatRoomsModel.allRooms).filter(
+        rooms: Object.values(ChatRoomsModel.allRooms || {}).filter(
           (info) => !ChatRoomsModel.subscribed(info)
         ),
         tagname: '.leftlobby.public',
@@ -354,89 +538,129 @@ const PublicLeftLobbies = {
   },
 };
 
-const PublicLobbies = () => {
-  return m('.widget', [
-    m('.widget__heading', m('h3', 'Public chat rooms')),
-    m('.widget__body', [
-      m(LobbyList, {
-        rooms: ChatRoomsModel.allRooms.filter((info) => !ChatRoomsModel.subscribed(info)),
-        tagname: '.lobby.public',
-        onclick: ChatLobbyModel.setupEvent,
-      }),
-    ]),
-  ]);
+const PublicLobbies = {
+  view() {
+    return m('.widget', [
+      m('.widget__heading', m('h3', 'Public chat rooms')),
+      m('.widget__body', [
+        m(LobbyList, {
+          rooms: (ChatRoomsModel.allRooms || []).filter((info) => !ChatRoomsModel.subscribed(info)),
+          tagname: '.lobby.public',
+          onclick: ChatLobbyModel.setupEvent,
+        }),
+      ]),
+    ]);
+  },
 };
 
 const LobbyName = () => {
   return m(
     'h3.lobbyName',
+    m('.mobile-menu-icons', [
+      m('i.fas.fa-bars', { onclick: () => MobileState.toggleLobbies() }),
+    ]),
     ChatLobbyModel.isSubscribed
       ? [m('span.chatusername', ChatLobbyModel.lobby_user), m('span.chatatchar', '@')]
       : [],
     m('span.chatlobbyname', ChatLobbyModel.currentLobby.lobby_name),
+    m('.mobile-menu-icons', [
+      m('i.fas.fa-users', { onclick: () => MobileState.toggleUsers() }),
+    ]),
     m.route.param('subaction') !== 'setup'
       ? [
-          m('i.fas.fa-cog.setupicon', {
-            title: 'configure lobby',
-            onclick: () =>
-              m.route.set(
-                '/chat/:lobby/:subaction',
-                {
-                  lobby: m.route.param('lobby'),
-                  subaction: 'setup',
-                },
-                { replace: true }
-              ),
-          }),
-        ]
+        m('i.fas.fa-cog.setupicon', {
+          title: 'configure lobby',
+          onclick: () =>
+            m.route.set(
+              '/chat/:lobby/:subaction',
+              {
+                lobby: m.route.param('lobby'),
+                subaction: 'setup',
+              },
+              { replace: true }
+            ),
+        }),
+      ]
       : [],
     ChatLobbyModel.isSubscribed
       ? [
-          m('i.fas.fa-sign-out-alt.leaveicon', {
-            title: 'leaving lobby',
-            onclick: () =>
-              ChatLobbyModel.unsubscribeChatLobby(m.route.param('lobby'), () => {
-                m.route.set('/chat', null, { replace: true });
-              }),
-          }),
-        ]
+        m('i.fas.fa-sign-out-alt.leaveicon', {
+          title: 'leaving lobby',
+          onclick: () =>
+            ChatLobbyModel.unsubscribeChatLobby(m.route.param('lobby'), () => {
+              m.route.set('/chat', null, { replace: true });
+            }),
+        }),
+      ]
       : []
   );
 };
 
 // ***************************** Page Layouts ******************************
 
-const Layout = () => {
-  return {
-    view: () => m('.node-panel', [m(SubscribedLobbies), PublicLobbies()]),
-  };
+const Layout = {
+  view: () => m('.node-panel.chat-panel.chat-hub', [m(SubscribedLobbies), m(PublicLobbies)]),
 };
 
 const LayoutSingle = () => {
+  const onResize = () => {
+    const element = document.querySelector('.messages');
+    if (element) element.scrollTop = element.scrollHeight;
+  };
   return {
-    oninit: () => ChatLobbyModel.loadLobby(m.route.param('lobby')),
+    oninit: () => {
+      ChatLobbyModel.loadLobby(m.route.param('lobby'));
+      window.addEventListener('resize', onResize);
+    },
+    onremove: () => window.removeEventListener('resize', onResize),
     view: (vnode) =>
-      m('.node-panel', [
-        LobbyName(),
-        m('.lobbies', m(SubscribedLeftLobbies), m(PublicLeftLobbies)),
-        m('.messages', ChatLobbyModel.messages),
-        m('.rightbar', ChatLobbyModel.users),
-        m(
-          '.chatMessage',
-          {},
-          m('textarea.chatMsg', {
-            placeholder: 'enter new message and press return to send',
-            onkeydown: (e) => {
-              if (e.code === 'Enter') {
-                const msg = e.target.value;
-                e.target.value = ' sending ... ';
-                ChatLobbyModel.sendMessage(msg, () => (e.target.value = ''));
-                return false;
-              }
-            },
-          })
-        ),
-      ]),
+      m(
+        '.node-panel.chat-panel.chat-room',
+        {
+          class:
+            (MobileState.showLobbies ? 'show-lobbies ' : '') +
+            (MobileState.showUsers ? 'show-users' : ''),
+        },
+        [
+          m('.chat-overlay', { onclick: () => MobileState.closeAll() }),
+          LobbyName(),
+          m('.lobbies', m(SubscribedLeftLobbies), m(PublicLeftLobbies)),
+          m('.messages', { onclick: () => MobileState.closeAll() }, ChatLobbyModel.messages),
+          m('.rightbar', ChatLobbyModel.users),
+          m(
+            '.chatMessage',
+            {},
+            [
+              m('textarea.chatMsg', {
+                placeholder: 'Type a message...',
+                enterkeyhint: 'send',
+                onkeydown: (e) => {
+                  if ((e.key === 'Enter' || e.keyCode === 13) && !e.shiftKey) {
+                    const msg = e.target.value;
+                    if (msg.trim() === '') return false;
+                    e.target.value = ' sending ... ';
+                    ChatLobbyModel.sendMessage(msg, () => (e.target.value = ''));
+                    return false;
+                  }
+                },
+              }),
+              m(
+                'button.chat-send-btn',
+                {
+                  onclick: (e) => {
+                    const textarea = e.target.closest('.chatMessage').querySelector('textarea');
+                    const msg = textarea.value;
+                    if (msg.trim() === '') return;
+                    textarea.value = ' sending ... ';
+                    ChatLobbyModel.sendMessage(msg, () => (textarea.value = ''));
+                  },
+                },
+                m('i.fas.fa-paper-plane')
+              ),
+            ]
+          ),
+        ]
+      ),
   };
 };
 
@@ -445,40 +669,49 @@ const LayoutSetup = () => {
   return {
     oninit: () => peopleUtil.ownIds((data) => (ownIds = data)),
     view: (vnode) =>
-      m('.node-panel', [
-        LobbyName(),
-        m('.lobbies', m(SubscribedLeftLobbies), m(PublicLeftLobbies)),
-        m('.setup', [
-          m('h5.selectidentity', 'Select identity to use'),
-          ownIds.map((nick) =>
-            m(
-              '.identity' +
+      m(
+        '.node-panel.chat-panel.chat-room.chat-setup',
+        {
+          class:
+            (MobileState.showLobbies ? 'show-lobbies ' : '') +
+            (MobileState.showUsers ? 'show-users' : ''),
+        },
+        [
+          m('.chat-overlay', { onclick: () => MobileState.closeAll() }),
+          LobbyName(),
+          m('.lobbies', m(SubscribedLeftLobbies), m(PublicLeftLobbies)),
+          m('.setup', [
+            m('h5.selectidentity', 'Select identity to use'),
+            ownIds.map((nick) =>
+              m(
+                '.identity' +
                 (ChatLobbyModel.currentLobby.gxs_id === nick ? '.selectedidentity' : ''),
-              {
-                onclick: () => ChatLobbyModel.setupAction(m.route.param('lobby'), nick),
-              },
-              rs.userList.username(nick)
-            )
-          ),
-        ]),
-      ]),
+                {
+                  onclick: () => ChatLobbyModel.setupAction(m.route.param('lobby'), nick),
+                },
+                rs.userList.username(nick)
+              )
+            ),
+          ]),
+        ]
+      ),
   };
 };
 
 /*
-    /rsMsgs/initiateDistantChatConnexion
-	 * @param[in] to_pid RsGxsId to start the connection
-	 * @param[in] from_pid owned RsGxsId who start the connection
-	 * @param[out] pid distant chat id
-	 * @param[out] error_code if the connection can't be stablished
-	 * @param[in] notify notify remote that the connection is stablished
+    /rsChats/initiateDistantChatConnexion
+   * @param[in] to_pid RsGxsId to start the connection
+   * @param[in] from_pid owned RsGxsId who start the connection
+   * @param[out] pid distant chat id
+   * @param[out] error_code if the connection can't be stablished
+   * @param[in] notify notify remote that the connection is stablished
 */
 const LayoutCreateDistant = () => {
   let ownIds = [];
   return {
     oninit: () => peopleUtil.ownIds((data) => (ownIds = data)),
     view: (vnode) =>
-      m('.node-panel', [
+      m('.node-panel.chat-panel.chat-room', [
         m('.createDistantChat', [
           'choose identitiy to chat with ',
           rs.userList.username(m.route.param('lobby')),
@@ -488,7 +721,7 @@ const LayoutCreateDistant = () => {
               {
                 onclick: () =>
                   rs.rsJsonApiRequest(
-                    '/rsMsgs/initiateDistantChatConnexion',
+                    '/rsChats/initiateDistantChatConnexion',
                     {
                       to_pid: m.route.param('lobby'),
                       from_pid: id,
@@ -511,7 +744,6 @@ const LayoutCreateDistant = () => {
 module.exports = {
   oninit: () => {
     ChatRoomsModel.loadSubscribedRooms();
-    ChatRoomsModel.loadPublicRooms();
   },
   view: (vnode) => {
     if (m.route.param('lobby') === undefined) {

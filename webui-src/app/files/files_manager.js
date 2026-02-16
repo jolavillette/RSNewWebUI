@@ -36,7 +36,6 @@ function loadSharedDirectories() {
 // Update Shared Directories when there is a corresponding event
 rs.events[rs.RsEventsType.SHARED_DIRECTORIES] = {
   handler: (event) => {
-    console.log('Shared Directories Event: ', event);
     loadSharedDirectories();
   },
 };
@@ -152,85 +151,85 @@ const ShareDirTable = () => {
         m(
           'tbody.share-manager__table_body',
           sharedDirArr.length &&
-            sharedDirArr.map((sharedDirItem, index) => {
-              const {
-                filename,
-                virtualname,
-                shareflags,
-                parent_groups: parentGroups,
-              } = sharedDirItem;
-              const sharedFlags = futil.calcIndividualFlags(shareflags);
-              return m('tr', [
-                m(
-                  'td',
-                  m('input[type=text]', {
-                    value: filename,
-                    disabled: isEditDisabled,
-                    oninput: (e) => {
-                      sharedDirArr[index].filename = e.target.value;
-                    },
-                  })
-                ),
-                m(
-                  'td',
-                  m('input[type=text]', {
-                    value: virtualname,
-                    disabled: isEditDisabled,
-                    oninput: (e) => {
-                      sharedDirArr[index].virtualname = e.target.value;
-                    },
-                  })
-                ),
-                m(
-                  'td.share-flags',
-                  Object.keys(sharedFlags).map((flag) => {
-                    return [
-                      m(`input.share-flags-check[type=checkbox][id=${flag}]`, {
-                        checked: sharedFlags[flag],
-                        disabled: isEditDisabled,
-                      }),
-                      m(
-                        `label.share-flags-label[for=${flag}]`,
-                        {
-                          onclick: () => {
-                            if (isEditDisabled) return;
-                            sharedFlags[flag] = !sharedFlags[flag];
-                            sharedDirArr[index].shareflags = futil.calcShareFlagsValue(sharedFlags);
-                          },
-                          style: isEditDisabled && { color: '#7D7D7D' },
+          sharedDirArr.map((sharedDirItem, index) => {
+            const {
+              filename,
+              virtualname,
+              shareflags,
+              parent_groups: parentGroups,
+            } = sharedDirItem;
+            const sharedFlags = futil.calcIndividualFlags(shareflags);
+            return m('tr', [
+              m(
+                'td',
+                m('input[type=text]', {
+                  value: filename,
+                  disabled: isEditDisabled,
+                  oninput: (e) => {
+                    sharedDirArr[index].filename = e.target.value;
+                  },
+                })
+              ),
+              m(
+                'td',
+                m('input[type=text]', {
+                  value: virtualname,
+                  disabled: isEditDisabled,
+                  oninput: (e) => {
+                    sharedDirArr[index].virtualname = e.target.value;
+                  },
+                })
+              ),
+              m(
+                'td.share-flags',
+                Object.keys(sharedFlags).map((flag) => {
+                  return [
+                    m(`input.share-flags-check[type=checkbox][id=${flag}]`, {
+                      checked: sharedFlags[flag],
+                      disabled: isEditDisabled,
+                    }),
+                    m(
+                      `label.share-flags-label[for=${flag}]`,
+                      {
+                        onclick: () => {
+                          if (isEditDisabled) return;
+                          sharedFlags[flag] = !sharedFlags[flag];
+                          sharedDirArr[index].shareflags = futil.calcShareFlagsValue(sharedFlags);
                         },
-                        m(
-                          // check the flag type then if its value is true then only render the icon
-                          flag === 'isAnonymousSearch'
-                            ? sharedFlags[flag]
-                              ? 'i.fas.fa-search'
-                              : 'span'
-                            : flag === 'isAnonymousDownload'
+                        style: isEditDisabled && { color: '#7D7D7D' },
+                      },
+                      m(
+                        // check the flag type then if its value is true then only render the icon
+                        flag === 'isAnonymousSearch'
+                          ? sharedFlags[flag]
+                            ? 'i.fas.fa-search'
+                            : 'span'
+                          : flag === 'isAnonymousDownload'
                             ? sharedFlags[flag]
                               ? 'i.fas.fa-download'
                               : 'span'
                             : sharedFlags[flag]
-                            ? 'i.fas.fa-eye'
-                            : 'span'
-                        )
-                      ),
-                    ];
-                  })
-                ),
-                m(
-                  'td',
-                  {
-                    // since this is not an input element, manually change color
-                    style: { color: isEditDisabled ? '#6D6D6D' : 'black' },
-                    onclick: () =>
-                      !isEditDisabled && widget.popupMessage(m(ManageVisibility, { parentGroups })),
-                  },
-                  parentGroups.length === 0
-                    ? 'All Friend nodes'
-                    : parentGroups.map((groupFlag) => futil.RsNodeGroupId[groupFlag]).join(', ')
-                ),
-              ]);
-            })
+                              ? 'i.fas.fa-eye'
+                              : 'span'
+                      )
+                    ),
+                  ];
+                })
+              ),
+              m(
+                'td',
+                {
+                  // since this is not an input element, manually change color
+                  style: { color: isEditDisabled ? '#6D6D6D' : 'black' },
+                  onclick: () =>
+                    !isEditDisabled && widget.popupMessage(m(ManageVisibility, { parentGroups })),
+                },
+                parentGroups.length === 0
+                  ? 'All Friend nodes'
+                  : parentGroups.map((groupFlag) => futil.RsNodeGroupId[groupFlag]).join(', ')
+              ),
+            ]);
+          })
         ),
       ]);
     },
