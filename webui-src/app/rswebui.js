@@ -106,6 +106,7 @@ function rsJsonApiRequest(
   handleSerialize = JSON.stringify,
   config = null
 ) {
+  console.warn('[RS-DEBUG] rsJsonApiRequest called for path:', path, 'with config:', !!config);
   headers['Accept'] = 'application/json';
   if (loginKey.isVerified) {
     if (loginKey.username && loginKey.passwd) {
@@ -135,7 +136,7 @@ function rsJsonApiRequest(
       headers,
       body: data,
 
-      config,
+      xhr: config,
     })
     .then((result) => {
       if (result.status === 200) {
@@ -254,8 +255,9 @@ const eventQueue = {
     },
   },
   handler: (event) => {
+    console.warn('[RS-DEBUG] Event queue handler received type:', event.mType);
     if (!deeperIfExist(eventQueue.events, event.mType, (owner) => owner.handler(event, owner))) {
-      // console.info('[RS-DEBUG] unhandled event', event);
+      console.info('[RS-DEBUG] unhandled event', event);
     }
   },
 };
@@ -340,42 +342,57 @@ function startEventQueue(
   displayErrorMessage = () => { },
   successful = () => { }
 ) {
-  return rsJsonApiRequest(
-    '/rsEvents/registerEventsHandler',
-    {},
-    (data, success) => {
-      if (success) {
-        // unused
-      } else if (data.status === 401) {
+  console.warn('[RS-DEBUG] startEventQueue starting raw XHR for:', info);
+  const xhr = new window.XMLHttpRequest();
+  let lastIndex = 0;
+  xhr.open('POST', loginKey.url + '/rsEvents/registerEventsHandler', true);
+
+  // Set headers for authentication
+  const headers = {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+    ...loginHeader,
+  };
+
+  if (loginKey.isVerified && !headers['Authorization']) {
+    if (loginKey.username && loginKey.passwd) {
+      console.warn('[RS-DEBUG] Setting persistent Auth header for event queue');
+      headers['Authorization'] = 'Basic ' + btoa(loginKey.username + ':' + loginKey.passwd);
+    } else {
+      console.warn('[RS-DEBUG] Missing credentials for event queue auth');
+    }
+  }
+
+  Object.keys(headers).forEach((key) => {
+    xhr.setRequestHeader(key, headers[key]);
+  });
+
+  xhr.onreadystatechange = () => {
+    console.warn('[RS-DEBUG] Event Queue XHR state changed:', xhr.readyState, 'status:', xhr.status);
+    if (xhr.readyState === 4) {
+      if (xhr.status === 401) {
         displayAuthError('Incorrect login/password.');
-      } else if (data.status === 0) {
-        displayErrorMessage([
-          'Retroshare-jsonapi not available.',
-          m('br'),
-          'Please fix host and/or port.',
-        ]);
-      } else {
-        displayErrorMessage('Login failed: HTTP ' + data.status + ' ' + data.statusText);
+      } else if (xhr.status === 0) {
+        console.error('[RS-DEBUG] Event Queue connection failed (status 0)');
       }
-    },
-    true,
-    loginHeader,
-    JSON.parse,
-    JSON.stringify,
-    (xhr, args, url) => {
-      let lastIndex = 0;
-      xhr.onprogress = (ev) => {
-        const currIndex = xhr.responseText.length;
-        if (currIndex > lastIndex) {
-          const parts = xhr.responseText.substring(lastIndex, currIndex);
-          lastIndex = currIndex;
-          parts
-            .trim()
-            .split('\n\n')
-            .filter((e) => e.startsWith('data: {'))
-            .map((e) => e.substr(6))
-            .map(JSON.parse)
-            .forEach((data) => {
+    }
+  };
+
+  xhr.onprogress = (ev) => {
+    const currIndex = xhr.responseText.length;
+    if (currIndex > lastIndex) {
+      const parts = xhr.responseText.substring(lastIndex, currIndex);
+      lastIndex = currIndex;
+      console.warn('[RS-DEBUG] RAW DATA RECEIVED:', parts);
+      parts
+        .trim()
+        .split('\n\n')
+        .filter((e) => e.trim().length > 0)
+        .forEach((e) => {
+          if (e.startsWith('data: {')) {
+            try {
+              const data = JSON.parse(e.substr(6));
+              console.warn('[RS-DEBUG] PARSED EVENT:', data);
               if (Object.prototype.hasOwnProperty.call(data, 'retval')) {
                 console.info(
                   '[RS-DEBUG] ' + info + ' [' + data.retval.errorCategory + '] ' + data.retval.errorMessage
@@ -389,21 +406,38 @@ function startEventQueue(
                 data.event.queueSize = currIndex;
                 try {
                   eventQueue.handler(data.event);
-                } catch (e) {
-                  console.error('[RS-DEBUG] Error in event handler:', e, data.event);
+                } catch (err) {
+                  console.error('[RS-DEBUG] Error in event handler:', err, data.event);
                 }
               }
-            });
-          if (currIndex > 1e6) {
-            // max 1 MB eventQueue
-            startEventQueue('restart queue');
-            xhr.abort();
+            } catch (err) {
+              console.error('[RS-DEBUG] JSON parse error for part:', e, err);
+            }
+          } else {
+            console.info('[RS-DEBUG] Ignored non-data part:', e);
           }
-        }
-      };
-      return xhr;
+        });
+      if (currIndex > 1e6) {
+        // max 1 MB eventQueue
+        console.warn('[RS-DEBUG] Restarting event queue (size > 1MB)');
+        startEventQueue('restart queue');
+        xhr.abort();
+      }
     }
-  );
+  };
+
+  xhr.onload = () => {
+    console.warn('[RS-DEBUG] Event Queue XHR load finished. Status:', xhr.status);
+  };
+
+  xhr.onerror = (err) => {
+    console.error('[RS-DEBUG] Event Queue XHR error occurred:', err);
+  };
+
+  // We need to send an eventType to registerEventsHandler
+  // 0 means all events
+  xhr.send(JSON.stringify({ eventType: 0 }));
+  return xhr;
 }
 
 function logon(loginHeader, displayAuthError, displayErrorMessage, successful) {

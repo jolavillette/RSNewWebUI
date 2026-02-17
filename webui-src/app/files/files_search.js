@@ -11,11 +11,12 @@ const reqObj = {};
 function handleSubmit() {
   rs.rsJsonApiRequest('/rsFiles/turtleSearch', { matchString })
     .then((res) => {
+      console.warn('[RS-DEBUG] turtleSearch response:', res.body);
       // Add prefix to obj keys so that javascript doesn't sort them
       reqObj['_' + res.body.retval] = matchString;
       currentItem = '_' + res.body.retval;
     })
-    .catch((error) => console.log(error));
+    .catch((error) => console.error('[RS-DEBUG] turtleSearch error:', error));
 }
 
 const SearchBar = () => {
@@ -63,58 +64,72 @@ const Layout = () => {
       m('.widget__body', [
         m('div.file-search-container', [
           m('div.file-search-container__keywords', [
-            m('h5.bold', 'Keywords'),
-            Object.keys(reqObj).length !== 0 &&
+            m('.keywords-header', [
+              m('h5.bold', 'Keywords'),
               m(
-                'div.keywords-container',
-                Object.keys(reqObj)
-                  .reverse()
-                  .map((item, index) => {
-                    return m(
-                      m.route.Link,
-                      {
-                        class: active === index ? 'selected' : '',
-                        onclick: () => {
-                          active = index;
-                          currentItem = item;
-                        },
-                        href: `/files/search/${item}`,
-                      },
-                      reqObj[item]
-                    );
-                  })
+                'button.red.clear-btn',
+                {
+                  onclick: () => {
+                    Object.keys(reqObj).forEach((key) => delete reqObj[key]);
+                    Object.keys(fproxy.fileProxyObj).forEach((key) => delete fproxy.fileProxyObj[key]);
+                    currentItem = 0;
+                    active = 0;
+                  },
+                },
+                'Clear'
               ),
+            ]),
+            Object.keys(reqObj).length !== 0 &&
+            m(
+              'div.keywords-container',
+              Object.keys(reqObj)
+                .reverse()
+                .map((item, index) => {
+                  return m(
+                    m.route.Link,
+                    {
+                      class: active === index ? 'selected' : '',
+                      onclick: () => {
+                        active = index;
+                        currentItem = item;
+                      },
+                      href: `/files/search/${item}`,
+                    },
+                    reqObj[item]
+                  );
+                })
+            ),
           ]),
           m('div.file-search-container__results', [
-            Object.keys(fproxy.fileProxyObj).length === 0
+            Object.keys(fproxy.fileProxyObj).length === 0 || currentItem === 0
               ? m('h5.bold', 'Results')
-              : m('table.results-container', [
-                  m(
-                    'thead.results-header',
-                    m('tr', [
-                      m('th', 'Name'),
-                      m('th', 'Size'),
-                      m('th', 'Hash'),
-                      m('th', 'Download'),
-                    ])
-                  ),
-                  m(
-                    'tbody.results',
-                    fproxy.fileProxyObj[currentItem.slice(1)]
-                      ? fproxy.fileProxyObj[currentItem.slice(1)].map((item) =>
-                          m('tr', [
-                            m('td.results__name', [m('i.fas.fa-file'), m('span', item.fName)]),
-                            m('td.results__size', rs.formatBytes(item.fSize.xint64)),
-                            m('td.results__hash', item.fHash),
-                            m(
-                              'td.results__download',
-                              m('button', { onclick: () => handleFileDownload(item) }, 'Download')
-                            ),
-                          ])
-                        )
-                      : 'No Results.'
-                  ),
-                ]),
+              : m('div.results-container', [
+                m(
+                  'div.results-header',
+                  m('.results-row', [
+                    m('.results-cell.name-col', 'Name'),
+                    m('.results-cell.size-col', 'Size'),
+                    m('.results-cell.hash-col', 'Hash'),
+                    m('.results-cell.action-col', 'Download'),
+                  ])
+                ),
+                m(
+                  'div.results-list',
+                  fproxy.fileProxyObj[currentItem.slice(1)]
+                    ? fproxy.fileProxyObj[currentItem.slice(1)].map((item) =>
+                      m('div.results-row.file-item', [
+                        m('.results-cell.name-col', [m('i.fas.fa-file'), m('span', item.fName)]),
+                        m('.results-cell.size-col', rs.formatBytes((item.fSize && (item.fSize.xint64 || item.fSize.xstr64)) || 0)),
+                        m('.results-cell.hash-col', item.fHash),
+                        m(
+                          '.results-cell.action-col',
+                          m('button', { onclick: () => handleFileDownload(item) }, 'Download')
+                        ),
+                      ])
+                    )
+                    : 'No Results.'
+                ),
+              ]),
           ]),
         ]),
       ]),

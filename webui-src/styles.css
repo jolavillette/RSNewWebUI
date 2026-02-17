@@ -46,84 +46,84 @@ p {
 
 @font-face {
   font-family: Roboto;
-  src: url("./webfonts/Roboto-Bold.woff2") format("woff2"), url("./webfonts/Roboto-Bold.woff") format("woff"), url("./webfonts/Roboto-Bold.ttf") format("truetype");
+  src: url("./webfonts/Roboto-Bold.woff") format("woff"), url("./webfonts/Roboto-Bold.ttf") format("truetype");
   font-weight: 700;
   font-style: normal
 }
 
 @font-face {
   font-family: Roboto;
-  src: url("./webfonts/Roboto-Bold.woff2") format("woff2"), url("./webfonts/Roboto-Bold.woff") format("woff"), url("./webfonts/Roboto-Bold.ttf") format("truetype");
+  src: url("./webfonts/Roboto-Bold.woff") format("woff"), url("./webfonts/Roboto-Bold.ttf") format("truetype");
   font-weight: bold;
   font-style: normal
 }
 
 @font-face {
   font-family: Roboto;
-  src: url("./webfonts/Roboto-BoldItalic.woff2") format("woff2"), url("./webfonts/Roboto-BoldItalic.woff") format("woff"), url("./webfonts/Roboto-BoldItalic.ttf") format("truetype");
+  src: url("./webfonts/Roboto-BoldItalic.woff") format("woff"), url("./webfonts/Roboto-BoldItalic.ttf") format("truetype");
   font-weight: 700;
   font-style: italic
 }
 
 @font-face {
   font-family: Roboto;
-  src: url("./webfonts/Roboto-BoldItalic.woff2") format("woff2"), url("./webfonts/Roboto-BoldItalic.woff") format("woff"), url("./webfonts/Roboto-BoldItalic.ttf") format("truetype");
+  src: url("./webfonts/Roboto-BoldItalic.woff") format("woff"), url("./webfonts/Roboto-BoldItalic.ttf") format("truetype");
   font-weight: bold;
   font-style: italic
 }
 
 @font-face {
   font-family: Roboto;
-  src: url("./webfonts/Roboto-Medium.woff2") format("woff2"), url("./webfonts/Roboto-Medium.woff") format("woff"), url("./webfonts/Roboto-Medium.ttf") format("truetype");
+  src: url("./webfonts/Roboto-Medium.woff") format("woff"), url("./webfonts/Roboto-Medium.ttf") format("truetype");
   font-weight: 500;
   font-style: normal
 }
 
 @font-face {
   font-family: Roboto;
-  src: url("./webfonts/Roboto-MediumItalic.woff2") format("woff2"), url("./webfonts/Roboto-MediumItalic.woff") format("woff"), url("./webfonts/Roboto-MediumItalic.ttf") format("truetype");
+  src: url("./webfonts/Roboto-MediumItalic.woff") format("woff"), url("./webfonts/Roboto-MediumItalic.ttf") format("truetype");
   font-weight: 500;
   font-style: italic
 }
 
 @font-face {
   font-family: Roboto;
-  src: url("./webfonts/Roboto-Regular.woff2") format("woff2"), url("./webfonts/Roboto-Regular.woff") format("woff"), url("./webfonts/Roboto-Regular.ttf") format("truetype");
+  src: url("./webfonts/Roboto-Regular.woff") format("woff"), url("./webfonts/Roboto-Regular.ttf") format("truetype");
   font-weight: 400;
   font-style: normal
 }
 
 @font-face {
   font-family: Roboto;
-  src: url("./webfonts/Roboto-Regular.woff2") format("woff2"), url("./webfonts/Roboto-Regular.woff") format("woff"), url("./webfonts/Roboto-Regular.ttf") format("truetype");
+  src: url("./webfonts/Roboto-Regular.woff") format("woff"), url("./webfonts/Roboto-Regular.ttf") format("truetype");
   font-weight: normal;
   font-style: normal
 }
 
 @font-face {
   font-family: Roboto;
-  src: url("./webfonts/Roboto-Italic.woff2") format("woff2"), url("./webfonts/Roboto-Italic.woff") format("woff"), url("./webfonts/Roboto-Italic.ttf") format("truetype");
+  src: url("./webfonts/Roboto-Italic.woff") format("woff"), url("./webfonts/Roboto-Italic.ttf") format("truetype");
   font-weight: 400;
   font-style: italic
 }
 
 @font-face {
   font-family: Roboto;
-  src: url("./webfonts/Roboto-Italic.woff2") format("woff2"), url("./webfonts/Roboto-Italic.woff") format("woff"), url("./webfonts/Roboto-Italic.ttf") format("truetype");
+  src: url("./webfonts/Roboto-Italic.woff") format("woff"), url("./webfonts/Roboto-Italic.ttf") format("truetype");
   font-weight: normal;
   font-style: italic
 }
 
 @font-face {
   font-family: Roboto;
-  src: url("./webfonts/Roboto-Light.woff2") format("woff2"), url("./webfonts/Roboto-Light.woff") format("woff"), url("./webfonts/Roboto-Light.ttf") format("truetype");
+  src: url("./webfonts/Roboto-Light.woff") format("woff"), url("./webfonts/Roboto-Light.ttf") format("truetype");
   font-weight: 300;
   font-style: normal
 }
 
 @font-face {
   font-family: Roboto;
-  src: url("./webfonts/Roboto-LightItalic.woff2") format("woff2"), url("./webfonts/Roboto-LightItalic.woff") format("woff"), url("./webfonts/Roboto-LightItalic.ttf") format("truetype");
+  src: url("./webfonts/Roboto-LightItalic.woff") format("woff"), url("./webfonts/Roboto-LightItalic.ttf") format("truetype");
   font-weight: 300;
   font-style: italic
 }
@@ -8564,5 +8564,243 @@ table.boards tr.hidden {
     width: 100% !important;
     height: auto !important;
     z-index: 100;
+  }
+}
+
+/* FILES MODULE RESPONSIVENESS (v45) */
+@media (max-width: 700px) {
+
+  /* General Files Layout */
+  .file-view__body-details {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  /* File Detail Grid (Downloads/Uploads) */
+  .file-view__body-details-stat {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .file-view__body-details-stat span {
+    display: flex;
+    align-items: center;
+  }
+
+  /* Share Manager Table -> Cards */
+  .share-manager__table,
+  .share-manager__table thead,
+  .share-manager__table tbody,
+  .share-manager__table tr,
+  .share-manager__table td {
+    display: block;
+    width: 100% !important;
+  }
+
+  .share-manager__table thead {
+    display: none;
+    /* Hide header on mobile */
+  }
+
+  .share-manager__table tr {
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    background: white;
+  }
+
+  .share-manager__table td {
+    margin-bottom: 0.5rem;
+    border: none !important;
+    padding-left: 0 !important;
+  }
+
+  /* My Files / Friends Files Tables -> Cards */
+  table.myfiles,
+  table.myfiles tr,
+  table.myfiles td,
+  table.friendsfiles,
+  table.friendsfiles tr,
+  table.friendsfiles td {
+    display: block;
+    width: 100% !important;
+  }
+
+  table.myfiles th,
+  table.friendsfiles th {
+    display: none;
+  }
+
+  table.myfiles tr,
+  table.friendsfiles tr {
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    background: white;
+  }
+
+  /* Search Container Layout */
+  .file-search-container {
+    flex-direction: column;
+  }
+
+  .file-search-container__keywords {
+    flex-basis: auto;
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid rgba(20, 20, 27, 0.1);
+    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  /* Search results table -> cards */
+  .results-container,
+  .results-container thead,
+  .results-container tbody,
+  .results-container tr,
+  .results-container td {
+    display: block;
+    width: 100% !important;
+  }
+
+  .results-container thead {
+    display: none;
+  }
+
+  .results-container tr {
+    border-bottom: 1px solid #eee;
+    padding: 1rem 0;
+  }
+
+  .results-container td {
+    margin-bottom: 0.5rem;
+    word-break: break-all;
+  }
+
+  /* GLOBAL SIDEBAR TO TABS (v46) */
+  .tab-content {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    border-bottom: 1px solid rgba(20, 20, 27, 0.1);
+    background: white;
+    z-index: 50;
+    flex-shrink: 0;
+  }
+
+  .sidebar a {
+    display: inline-block;
+    padding: 0.8rem 1.2rem;
+    border-bottom: 3px solid transparent;
+  }
+
+  .sidebar .selected-sidebar-link {
+    border-left: none;
+    border-bottom: 3px solid #3ba4d7;
+    animation: none;
+  }
+
+  /* Hide quickview headings on mobile to save space if needed */
+  .sidebarquickview>h4 {
+    display: none;
+  }
+}
+/* Search Results Responsive Layout (v60) */
+.results-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--main-bg-color);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.results-header {
+  background: var(--secondary-bg-color);
+  font-weight: bold;
+}
+
+.results-row {
+  display: flex;
+  border-bottom: 1px solid var(--border-color);
+  padding: 0.8rem;
+  align-items: center;
+}
+
+.results-cell {
+  padding: 0 0.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.name-col { flex: 3; }
+.size-col { flex: 1; text-align: center; }
+.hash-col { flex: 4; font-family: monospace; font-size: 0.8rem; opacity: 0.7; }
+.action-col { flex: 1; text-align: right; }
+
+.file-item:hover {
+  background: rgba(var(--primary-color-rgb), 0.05);
+}
+
+/* Mobile Adjustments */
+@media screen and (max-width: 768px) {
+  .results-header {
+    display: none; /* Hide header on mobile */
+  }
+
+  .results-row {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 1rem;
+    gap: 0.5rem;
+  }
+
+  .results-cell {
+    padding: 0;
+    width: 100%;
+    white-space: normal;
+  }
+
+  .name-col {
+    font-weight: bold;
+    font-size: 1.1rem;
+    margin-bottom: 0.3rem;
+  }
+
+  .size-col {
+    text-align: left;
+    color: var(--secondary-text-color);
+    font-size: 0.9rem;
+  }
+
+  .hash-col {
+    display: none; /* Hide hash on mobile as requested */
+  }
+
+  .action-col {
+    width: 100%;
+    text-align: center;
+    margin-top: 0.5rem;
+  }
+
+  .action-col button {
+    width: 100%;
+    padding: 0.8rem;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-weight: bold;
   }
 }
