@@ -44,7 +44,7 @@ const navbar = () => {
             m('.nav-menu__logo-text', [
               m('h5', 'RetroShare'),
               m('.webui-version-box', [
-                m('span.webui-version', 'v61'),
+                m('span.webui-version', 'v65'),
                 m('i.fas.fa-sync-alt.refresh-icon', {
                   onclick: () => window.location.reload(true),
                   title: 'Force reload application',

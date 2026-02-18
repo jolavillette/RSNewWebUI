@@ -32,6 +32,34 @@ const SearchBar = () => {
   };
 };
 
+const getFileIcon = (fileName) => {
+  const ext = fileName.split('.').pop().toLowerCase();
+  switch (ext) {
+    case 'pdf': return 'i.fas.fa-file-pdf';
+    case 'zip':
+    case 'rar':
+    case 'tar':
+    case 'gz':
+    case '7z': return 'i.fas.fa-file-archive';
+    case 'jpg':
+    case 'jpeg':
+    case 'png':
+    case 'gif': return 'i.fas.fa-file-image';
+    case 'mp4':
+    case 'mkv':
+    case 'avi':
+    case 'mov': return 'i.fas.fa-file-video';
+    case 'mp3':
+    case 'wav':
+    case 'flac': return 'i.fas.fa-file-audio';
+    case 'txt':
+    case 'doc':
+    case 'docx':
+    case 'pdf': return 'i.fas.fa-file-alt';
+    default: return 'i.fas.fa-file';
+  }
+};
+
 const Layout = () => {
   let active = 0;
   function handleFileDownload(item) {
@@ -118,12 +146,16 @@ const Layout = () => {
                   fproxy.fileProxyObj[currentItem.slice(1)]
                     ? fproxy.fileProxyObj[currentItem.slice(1)].map((item) =>
                       m('div.results-row.file-item', [
-                        m('.results-cell.name-col', [m('i.fas.fa-file'), m('span', item.fName)]),
+                        m('.results-cell.name-col', [m(getFileIcon(item.fName)), m('span', item.fName)]),
                         m('.results-cell.size-col', rs.formatBytes((item.fSize && (item.fSize.xint64 || item.fSize.xstr64)) || 0)),
                         m('.results-cell.hash-col', item.fHash),
                         m(
                           '.results-cell.action-col',
-                          m('button', { onclick: () => handleFileDownload(item) }, 'Download')
+                          m(
+                            'button.download-btn-v65',
+                            { onclick: () => handleFileDownload(item) },
+                            'Download'
+                          )
                         ),
                       ])
                     )
