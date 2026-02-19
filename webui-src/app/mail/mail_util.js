@@ -128,7 +128,7 @@ const AttachmentSection = () => {
           m('i.fas.fa-file-medical'),
           m('h3', `File is ${status.retval ? 'being' : 'already'} downloaded!`),
         ])
-    ).catch((error) => console.log('error: ', error));
+    ).catch((error) => { });
   }
   return {
     view: (v) =>
@@ -251,69 +251,69 @@ const MessageView = () => {
             m('h3', MailData.subject),
             m('.msg-details', [
               MailData.sender &&
-                m(peopleUtil.UserAvatar, {
-                  avatar: MailData.avatar,
-                  firstLetter: rs.userList.userMap[MailData.sender._addr_string]
-                    ? rs.userList.userMap[MailData.sender._addr_string].slice(0, 1).toUpperCase()
-                    : '',
-                }),
+              m(peopleUtil.UserAvatar, {
+                avatar: MailData.avatar,
+                firstLetter: rs.userList.userMap[MailData.sender._addr_string]
+                  ? rs.userList.userMap[MailData.sender._addr_string].slice(0, 1).toUpperCase()
+                  : '',
+              }),
               m('.msg-details__info', [
                 MailData.sender &&
-                  m('.msg-details__info-item', [
-                    m('b', 'From: '),
-                    rs.userList.userMap[MailData.sender._addr_string] || 'Unknown',
-                  ]),
+                m('.msg-details__info-item', [
+                  m('b', 'From: '),
+                  rs.userList.userMap[MailData.sender._addr_string] || 'Unknown',
+                ]),
                 m('.msg-details__info-item', [
                   m('b', 'To: '),
                   MailData.toList && Object.keys(MailData.toList).length > 0
                     ? [
-                        m('#truncate.truncated-view', [
-                          Object.keys(MailData.toList).map((key, index) =>
-                            m('span', { key: index }, `${rs.userList.userMap[key] || 'Unknown'}, `)
-                          ),
-                        ]),
-                        m(
-                          'button.toggle-truncate',
-                          {
-                            style: {
-                              display: Object.keys(MailData.toList).length > 10 ? 'block' : 'none',
-                            },
-                            onclick: () => {
-                              document
-                                .querySelector('#truncate')
-                                .classList.toggle('truncated-view');
-                            },
-                          },
-                          '...'
+                      m('#truncate.truncated-view', [
+                        Object.keys(MailData.toList).map((key, index) =>
+                          m('span', { key: index }, `${rs.userList.userMap[key] || 'Unknown'}, `)
                         ),
-                      ]
+                      ]),
+                      m(
+                        'button.toggle-truncate',
+                        {
+                          style: {
+                            display: Object.keys(MailData.toList).length > 10 ? 'block' : 'none',
+                          },
+                          onclick: () => {
+                            document
+                              .querySelector('#truncate')
+                              .classList.toggle('truncated-view');
+                          },
+                        },
+                        '...'
+                      ),
+                    ]
                     : m('span', 'Unknown'),
                 ]),
                 MailData.ccList &&
-                  Object.keys(MailData.ccList).length > 0 &&
-                  m('.msg-details__info-item', [
-                    m('b', 'Cc: '),
-                    Object.keys(MailData.ccList).map((key, index) =>
-                      m('p', { key: index }, `${rs.userList.userMap[key]}, `)
-                    ),
-                  ]),
+                Object.keys(MailData.ccList).length > 0 &&
+                m('.msg-details__info-item', [
+                  m('b', 'Cc: '),
+                  Object.keys(MailData.ccList).map((key, index) =>
+                    m('p', { key: index }, `${rs.userList.userMap[key]}, `)
+                  ),
+                ]),
                 MailData.bccList &&
-                  Object.keys(MailData.bccList).length > 0 &&
-                  m('.msg-details__info-item', [
-                    m('b', 'Bcc: '),
-                    Object.keys(MailData.bccList).map((key, index) =>
-                      m('p', { key: index }, `${rs.userList.userMap[key]}, `)
-                    ),
-                  ]),
+                Object.keys(MailData.bccList).length > 0 &&
+                m('.msg-details__info-item', [
+                  m('b', 'Bcc: '),
+                  Object.keys(MailData.bccList).map((key, index) =>
+                    m('p', { key: index }, `${rs.userList.userMap[key]}, `)
+                  ),
+                ]),
               ]),
             ]),
           ]),
           m('.msg-view__body', m('#msgView')),
           MailData.files.length > 0 &&
-            m('.msg-view__attachment', [
-              m('h3', 'Attachments'),
-              m('.msg-view__attachment-items', m(AttachmentSection, { files: MailData.files })),
-            ]),
+          m('.msg-view__attachment', [
+            m('h3', 'Attachments'),
+            m('.msg-view__attachment-items', m(AttachmentSection, { files: MailData.files })),
+          ]),
         ],
         m(
           '.composePopupOverlay#mailComposerPopup',
@@ -322,14 +322,14 @@ const MessageView = () => {
             '.composePopup',
             MailData.sender._addr_string
               ? m(compose, {
-                  msgType: 'reply',
-                  senderId: MailData.sender._addr_string,
-                  recipientList: MailData.toList,
-                  subject: MailData.subject,
-                  replyMessage: MailData.message,
-                  timeStamp: new Date(MailData.timeStamp * 1000),
-                  setShowCompose,
-                })
+                msgType: 'reply',
+                senderId: MailData.sender._addr_string,
+                recipientList: MailData.toList,
+                subject: MailData.subject,
+                replyMessage: MailData.message,
+                timeStamp: new Date(MailData.timeStamp * 1000),
+                setShowCompose,
+              })
               : m('.widget', m('.widget__heading', m('h3', 'Sender is not known'))),
             m('button.red.close-btn', { onclick: () => setShowCompose(false) }, m('i.fas.fa-times'))
           )

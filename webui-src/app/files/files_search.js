@@ -11,12 +11,11 @@ const reqObj = {};
 function handleSubmit() {
   rs.rsJsonApiRequest('/rsFiles/turtleSearch', { matchString })
     .then((res) => {
-      console.warn('[RS-DEBUG] turtleSearch response:', res.body);
       // Add prefix to obj keys so that javascript doesn't sort them
       reqObj['_' + res.body.retval] = matchString;
       currentItem = '_' + res.body.retval;
     })
-    .catch((error) => console.error('[RS-DEBUG] turtleSearch error:', error));
+    .catch((error) => { });
 }
 
 const SearchBar = () => {
@@ -83,7 +82,7 @@ const Layout = () => {
         );
       })
       .catch((error) => {
-        console.log('error in sending download request: ', error);
+        // console.log('error in sending download request: ', error);
       });
   }
   return {

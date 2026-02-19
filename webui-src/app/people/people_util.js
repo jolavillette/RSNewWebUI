@@ -10,33 +10,28 @@ const UserAvatar = () => ({
     const imageURI = v.attrs.avatar;
     return imageURI === undefined || imageURI.mData.base64 === ''
       ? m(
-          'div.defaultAvatar',
-          {
-            // image isn't getting loaded
-            // ? m('img.defaultAvatar', {
-            //   src: '../data/user.png'
-            // })
-          },
-          m('p', v.attrs.firstLetter)
-        )
+        'div.defaultAvatar',
+        {
+          // image isn't getting loaded
+          // ? m('img.defaultAvatar', {
+          //   src: '../data/user.png'
+          // })
+        },
+        m('p', v.attrs.firstLetter)
+      )
       : m('img.avatar', {
-          src: 'data:image/png;base64,' + imageURI.mData.base64,
-        });
+        src: 'data:image/png;base64,' + imageURI.mData.base64,
+      });
   },
 });
 
 function contactlist(list) {
-  const result = [];
-  if (list !== undefined) {
-    list.map((id) => {
-      id.isSearched = true;
-      rs.rsJsonApiRequest('/rsIdentity/isARegularContact', { id: id.mGroupId }, (data) => {
-        if (data.retval) result.push(id);
-        console.log(data);
-      });
-    });
-  }
-  return result;
+  if (list === undefined) return [];
+  return list.filter((id) => {
+    id.isSearched = true;
+    const entry = rs.userList.userMap[id.mGroupId];
+    return entry && entry.isContact;
+  });
 }
 
 function sortUsers(list) {
@@ -63,7 +58,7 @@ function sortIds(list) {
   return list;
 }
 
-async function ownIds(consumer = () => {}, onlySigned = false) {
+async function ownIds(consumer = () => { }, onlySigned = false) {
   await rs.rsJsonApiRequest('/rsIdentity/getOwnSignedIds', {}, (owns) => {
     if (onlySigned) {
       consumer(sortIds(owns.ids));
@@ -122,10 +117,10 @@ const regularcontactInfo = () => {
         [
           m('h4', details.mNickname),
           details.mNickname &&
-            m(UserAvatar, {
-              avatar: details.mAvatar,
-              firstLetter: details.mNickname.slice(0, 1).toUpperCase(),
-            }),
+          m(UserAvatar, {
+            avatar: details.mAvatar,
+            firstLetter: details.mNickname.slice(0, 1).toUpperCase(),
+          }),
           m('.details', [
             m('p', 'ID:'),
             m('p', details.mId),

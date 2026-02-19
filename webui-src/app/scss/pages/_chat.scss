@@ -14,7 +14,7 @@
   color: #666;
 }
 
-.lobby > .topic {
+.lobby>.topic {
   font-size: 0.95em;
   margin-left: 25px;
   margin-bottom: 5px;
@@ -35,7 +35,7 @@
   font-size: 1em;
 }
 
-.leftlobby > .topic {
+.leftlobby>.topic {
   font-size: 0.75em;
   margin-left: 15px;
   margin-bottom: 5px;
@@ -106,7 +106,7 @@
   margin-right: 5px;
 }
 
-.message > * {
+.message>* {
   margin-left: 5px;
 }
 
@@ -151,7 +151,7 @@ textarea.chatMsg {
   font-size: 1.2em;
 }
 
-.setup > .identity {
+.setup>.identity {
   cursor: pointer;
 }
 
@@ -161,4 +161,13 @@ textarea.chatMsg {
 
 .createDistantChat {
   margin-top: 1em;
+}
+
+.no-lobbies {
+
+  .messages,
+  .chatMessage,
+  .setup {
+    left: 165px;
+  }
 }

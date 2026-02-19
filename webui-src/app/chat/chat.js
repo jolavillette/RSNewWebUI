@@ -21,7 +21,7 @@ function loadLobbyDetails(id, apply) {
     true,
     {},
     undefined,
-    () => '{"id":' + id + '}'
+    () => '{"id":"' + id + '"}'
   );
 }
 
@@ -30,20 +30,19 @@ function loadDistantChatDetails(pid, apply) {
   rs.rsJsonApiRequest(
     '/rsChats/getDistantChatStatus',
     {
-      pid: parseInt(pid),
+      pid: pid,
     },
     (detail, success) => {
       if (success && detail.retval) {
         // Map to lobby-like structure for UI compatibility
         const info = detail.info;
-        info.chatType = 4; // DISTANT
+        info.chatType = 2; // DISTANT (was 4, matched BROADCAST in C++)
         info.lobby_name = rs.userList.username(info.to_id) || 'Distant Chat ' + pid;
         info.lobby_topic = 'Private Encrypted Chat';
         info.gxs_id = info.own_id;
-        info.lobby_id = { xstr64: pid.toString() }; // Mock lobby_id for keying
+        info.lobby_id = { xstr64: pid }; // Use PID as lobby_id for UI internal routing
         apply(info);
       } else {
-        console.error('[RS-DEBUG] Failed to load distant chat info for PID:', pid);
         apply(null);
       }
     },
@@ -102,7 +101,7 @@ const ChatRoomsModel = {
           });
           ChatRoomsModel.allRooms = sortLobbies(uniqueLobbies);
         } else {
-          console.warn('[RS-DEBUG] No public lobbies found or malformed response:', data);
+          // No public lobbies
           ChatRoomsModel.allRooms = [];
         }
       }
@@ -149,7 +148,7 @@ const ChatRoomsModel = {
             })
           );
         } else {
-          console.warn('[RS-DEBUG] No subscribed lobbies found or malformed response:', data);
+          // No subscribed lobbies
           ChatRoomsModel.loadPublicRooms();
         }
       }
@@ -172,8 +171,20 @@ const Message = () => {
       const datetime = new Date(msg.sendTime * 1000).toLocaleTimeString();
       // Handle both HistoryMsg (peerId) and ChatMessage (lobby_peer_gxs_id)
       const rawGxsId = msg.lobby_peer_gxs_id || msg.peerId;
-      const gxsId =
-        rawGxsId && typeof rawGxsId === 'object' ? rawGxsId.xstr64 : rawGxsId;
+      let gxsId = rawGxsId;
+      if (rawGxsId && typeof rawGxsId === 'object') {
+        gxsId = (rawGxsId.xstr64 && rawGxsId.xstr64 !== '0') ? rawGxsId.xstr64 : rawGxsId;
+      }
+
+      // Fallback for 1-to-1 chats where sender ID might be missing (zeros)
+      const isZero = (id) => !id || id === '00000000000000000000000000000000' || id.xstr64 === '0';
+      if (isZero(gxsId)) {
+        const lobby = ChatLobbyModel.currentLobby;
+        if (lobby && (lobby.chatType === 1 || lobby.chatType === 2)) {
+          gxsId = msg.incoming ? (lobby.to_id || lobby.peer_id) : (lobby.own_id || lobby.gxs_id);
+        }
+      }
+
       let username = rs.userList.username(gxsId) || msg.peerName || '???';
       // If we only have the hex ID, try to fallback to the peerName from the message
       if (username === gxsId && msg.peerName) {
@@ -241,16 +252,16 @@ const ChatLobbyModel = {
 
   loadHistory(id, type) {
     const chatPeerId = {
-      broadcast_status_peer_id: { xstr64: '0' },
+      broadcast_status_peer_id: '00000000000000000000000000000000',
       type: type,
-      peer_id: { xstr64: '0' },
-      distant_chat_id: { xstr64: '0' },
+      peer_id: '00000000000000000000000000000000',
+      distant_chat_id: '00000000000000000000000000000000',
       lobby_id: { xstr64: '0' },
     };
 
     if (type === 3) chatPeerId.lobby_id.xstr64 = id;
-    else if (type === 4) chatPeerId.distant_chat_id = parseInt(id); // DistantChatPeerId is uint32
-    else if (type === 2) chatPeerId.peer_id.xstr64 = id;
+    else if (type === 2) chatPeerId.distant_chat_id = id;
+    else if (type === 1) chatPeerId.peer_id = id;
 
     rs.rsJsonApiRequest(
       '/rsHistory/getMessages',
@@ -278,7 +289,7 @@ const ChatLobbyModel = {
     );
   },
   enterPublicLobby(lobbyId, nick) {
-    console.info('joinVisibleChatLobby', nick, '@', lobbyId);
+    // Set lobby nickname
     rs.rsJsonApiRequest(
       '/rsChats/joinVisibleChatLobby',
       {},
@@ -297,7 +308,7 @@ const ChatLobbyModel = {
     );
   },
   unsubscribeChatLobby(lobbyId, follow) {
-    console.info('unsubscribe lobby', lobbyId);
+    // Unsubscribe
     rs.rsJsonApiRequest(
       '/rsChats/unsubscribeChatLobby',
       {},
@@ -312,14 +323,15 @@ const ChatLobbyModel = {
     const type = (this.currentLobby && this.currentLobby.chatType) || 3;
     const id = this.lastLobbyId || m.route.param('lobby');
     const cid = {
-      broadcast_status_peer_id: { xstr64: '0' },
+      broadcast_status_peer_id: '00000000000000000000000000000000',
       type: type,
-      peer_id: { xstr64: '0' },
-      distant_chat_id: { xstr64: '0' },
+      peer_id: '00000000000000000000000000000000',
+      distant_chat_id: '00000000000000000000000000000000',
       lobby_id: { xstr64: '0' },
     };
     if (type === 3) cid.lobby_id.xstr64 = id;
-    else if (type === 4) cid.distant_chat_id = parseInt(id);
+    else if (type === 2) cid.distant_chat_id = id;
+    else if (type === 1) cid.peer_id = id;
     return cid;
   },
   loadLobby(currentlobbyid) {
@@ -348,16 +360,15 @@ const ChatLobbyModel = {
       // Register for chatEvents for future messages
       rs.events[15].notify = (chatMessage) => {
         const msgCid = chatMessage.chat_id;
-        console.warn('[RS-DEBUG] Incoming chat msg:', chatMessage, 'Current Type:', detail.chatType, 'LobbyID:', currentlobbyid);
         let match = false;
         if (msgCid.type === detail.chatType) {
           if (detail.chatType === 3) {
             const clid = msgCid.lobby_id ? (typeof msgCid.lobby_id === 'object' ? msgCid.lobby_id.xstr64 : msgCid.lobby_id) : undefined;
             if (clid === currentlobbyid) match = true;
-          } else if (detail.chatType === 4) {
-            const dChatId = msgCid.distant_chat_id ? (typeof msgCid.distant_chat_id === 'object' ? msgCid.distant_chat_id.xstr64 : msgCid.distant_chat_id) : undefined;
-            console.warn('[RS-DEBUG] D-Chat check:', dChatId, 'vs', currentlobbyid);
-            if (dChatId == currentlobbyid) match = true; // compare with auto-cast
+          } else if (detail.chatType === 2) {
+            const dChatIdRaw = msgCid.distant_chat_id;
+            const dChatId = typeof dChatIdRaw === 'object' ? (dChatIdRaw.xstr64 !== '0' ? dChatIdRaw.xstr64 : dChatIdRaw) : dChatIdRaw;
+            if (dChatId == currentlobbyid) match = true;
           }
         }
         if (match) {
@@ -383,7 +394,6 @@ const ChatLobbyModel = {
       m.redraw();
     };
 
-    // Try determining type
     loadLobbyDetails(currentlobbyid, (detail) => {
       if (detail) {
         finishLoad(detail);
@@ -392,15 +402,12 @@ const ChatLobbyModel = {
         loadDistantChatDetails(currentlobbyid, (dDetail) => {
           if (dDetail) {
             finishLoad(dDetail);
-          } else {
-            console.error('[RS-DEBUG] Failed to load chat info (Lobby or Distant) for ID:', currentlobbyid);
           }
         });
       }
     });
   },
   loadPublicLobby(currentlobbyid) {
-    console.info('loadPublicLobby ChatRoomsModel:', ChatRoomsModel);
     this.setupAction = this.enterPublicLobby;
     this.isSubscribed = false;
     ChatRoomsModel.allRooms.forEach((it) => {
@@ -413,8 +420,9 @@ const ChatLobbyModel = {
     this.users = [];
   },
   sendMessage(msg, onsuccess) {
+    const cid = this.chatId();
     const echoMsg = {
-      chat_id: this.chatId(),
+      chat_id: cid,
       msg: msg,
       sendTime: Math.floor(Date.now() / 1000),
       lobby_peer_gxs_id: this.lobby_user,
@@ -424,7 +432,7 @@ const ChatLobbyModel = {
     rs.rsJsonApiRequest(
       '/rsChats/sendChat',
       {
-        id: this.chatId(),
+        id: cid,
         msg: msg,
       },
       (data, success) => {
@@ -613,18 +621,21 @@ const LayoutSingle = () => {
       window.addEventListener('resize', onResize);
     },
     onremove: () => window.removeEventListener('resize', onResize),
-    view: (vnode) =>
-      m(
+    view: (vnode) => {
+      const chatType = ChatLobbyModel.currentLobby.chatType;
+      const isPrivate = chatType === 1 || chatType === 2;
+      return m(
         '.node-panel.chat-panel.chat-room',
         {
           class:
             (MobileState.showLobbies ? 'show-lobbies ' : '') +
-            (MobileState.showUsers ? 'show-users' : ''),
+            (MobileState.showUsers ? 'show-users ' : '') +
+            (isPrivate ? 'no-lobbies' : ''),
         },
         [
           m('.chat-overlay', { onclick: () => MobileState.closeAll() }),
           LobbyName(),
-          m('.lobbies', m(SubscribedLeftLobbies), m(PublicLeftLobbies)),
+          !isPrivate && m('.lobbies', m(SubscribedLeftLobbies), m(PublicLeftLobbies)),
           m('.messages', { onclick: () => MobileState.closeAll() }, ChatLobbyModel.messages),
           m('.rightbar', ChatLobbyModel.users),
           m(
@@ -660,7 +671,8 @@ const LayoutSingle = () => {
             ]
           ),
         ]
-      ),
+      );
+    },
   };
 };
 
@@ -728,7 +740,6 @@ const LayoutCreateDistant = () => {
                       notify: true,
                     },
                     (result) => {
-                      console.info('initiateDistantChatConnexion', result);
                       m.route.set('/chat/:lobbyid', { lobbyid: result.pid });
                     }
                   ),

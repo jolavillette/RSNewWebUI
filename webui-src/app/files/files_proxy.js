@@ -8,8 +8,6 @@ const fileProxyObj = futil.createProxy({}, () => {
 
 rs.events[rs.RsEventsType.FILE_TRANSFER] = {
   handler: (event) => {
-    console.warn('[RS-DEBUG] FILE_TRANSFER event received:', event);
-
     // if request item doesn't already exists in Object then create new item
     if (!Object.prototype.hasOwnProperty.call(fileProxyObj, event.mRequestId)) {
       fileProxyObj[event.mRequestId] = [];

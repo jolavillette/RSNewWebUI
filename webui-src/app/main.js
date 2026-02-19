@@ -44,7 +44,7 @@ const navbar = () => {
             m('.nav-menu__logo-text', [
               m('h5', 'RetroShare'),
               m('.webui-version-box', [
-                m('span.webui-version', 'v65'),
+                m('span.webui-version', 'v87'),
                 m('i.fas.fa-sync-alt.refresh-icon', {
                   onclick: () => window.location.reload(true),
                   title: 'Force reload application',
@@ -113,10 +113,7 @@ const Layout = () => {
 
 m.route(document.getElementById('main'), '/', {
   '/': {
-    render: () => {
-      console.info('[RS-DEBUG] Routing to / (Login)');
-      return m(login);
-    },
+    render: () => m(login),
   },
   '/home': {
     render: () => m(Layout, m(home)),
@@ -184,13 +181,10 @@ m.route(document.getElementById('main'), '/', {
 
 // v51 architectural fix: ensure event queue starts on direct route refresh
 if (rs.loginKey.isVerified && rs.loginKey.username && rs.loginKey.passwd) {
-  console.info('[RS-DEBUG] main.js: Initiating global event queue for verified session...');
   rs.logon(
     { Authorization: `Basic ${btoa(`${rs.loginKey.username}:${rs.loginKey.passwd}`)}` },
     () => { }, // displayAuthError
     () => { }, // displayErrorMessage
-    () => {
-      console.info('[RS-DEBUG] Global event queue successfully started.');
-    }
+    () => { }
   );
 }

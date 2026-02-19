@@ -87,7 +87,6 @@ function loginComponent() {
   return {
     oninit: () => {
       if (rs.loginKey.isVerified && rs.loginKey.username && rs.loginKey.passwd) {
-        console.info('[RS-DEBUG] Auto-verifying persistent login...');
         verifyLogin(rs.loginKey.username, rs.loginKey.passwd, rs.loginKey.url, false);
       }
     },

@@ -103,7 +103,7 @@ async function updatedisplayforums(keyid, details = {}) {
       }
     }
   } catch (e) {
-    console.error('[RS-DEBUG] Error updating forum display for:', keyid, e);
+    console.error('[RS] Error updating forum display for:', keyid, e);
   } finally {
     Data.loading.delete(keyid);
     m.redraw(); // Final redraw just in case
