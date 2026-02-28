@@ -24,6 +24,22 @@ const DIR_FLAGS_ANONYMOUS_SEARCH = 0x0800;
 const DIR_FLAGS_ANONYMOUS_DOWNLOAD = 0x0080;
 const DIR_FLAGS_BROWSABLE = 0x0400;
 
+const RsSharedDirectoriesEventCode = {
+  UNKNOWN                  : 0x00,
+  HASHING_PROCESS_STARTED  : 0x01,
+  HASHING_PROCESS_PAUSED   : 0x02,
+  HASHING_PROCESS_RESUMED  : 0x04,
+  HASHING_PROCESS_FINISHED : 0x05,
+  HASHING_FILE             : 0x06,
+  SAVING_FILE_INDEX        : 0x07,
+  EXTRA_LIST_FILE_ADDED    : 0x08,
+  EXTRA_LIST_FILE_REMOVED  : 0x09,
+  SHARED_DIRS_LIST_CHANGED : 0x0a,
+  FRIEND_DIR_LIST_UPDATED  : 0x0b,
+  OWN_DIR_LIST_UPDATED     : 0x0c,
+  OWN_DIR_LIST_PROCESSING  : 0x0d,
+};
+
 /* eslint-disable no-unused-vars */
 
 // Access Permission calculated by performing OR operation on the above three flags.
@@ -332,6 +348,7 @@ module.exports = {
   DIR_FLAGS_ANONYMOUS_SEARCH,
   DIR_FLAGS_ANONYMOUS_DOWNLOAD,
   DIR_FLAGS_BROWSABLE,
+  RsSharedDirectoriesEventCode,
   RsNodeGroupId,
   loadRsNodeGroupId,
   File,

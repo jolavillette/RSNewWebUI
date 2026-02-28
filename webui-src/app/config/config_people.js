@@ -71,7 +71,7 @@ const Reputation = () => {
             }),
             m('p', 'Difference in votes (+/-) to rate an ID positively:'),
             m('input[type=number]', {
-              oninput: (e) => (positiveThreshold = e.target.value),
+              oninput: (e) => (positiveThreshold = parseInt(e.target.value)),
               value: positiveThreshold,
               onchange: () =>
                 rs.rsJsonApiRequest(
@@ -84,7 +84,7 @@ const Reputation = () => {
             }),
             m('p', 'Difference in votes (+/-) to rate an ID negatively:'),
             m('input[type=number]', {
-              oninput: (e) => (negativeThreshold = e.target.value),
+              oninput: (e) => (negativeThreshold = parseInt(e.target.value)),
               value: negativeThreshold,
               onchange: () =>
                 rs.rsJsonApiRequest(
@@ -97,7 +97,7 @@ const Reputation = () => {
             }),
             m('p', 'Delete banned identities after(in days, 0 means indefinitely):'),
             m('input[type=number]', {
-              oninput: (e) => (deleteBannedAfter = e.target.value),
+              oninput: (e) => (deleteBannedAfter = parseInt(e.target.value)),
               value: deleteBannedAfter,
               onchange: () =>
                 rs.rsJsonApiRequest(

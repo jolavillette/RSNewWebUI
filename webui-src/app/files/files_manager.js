@@ -37,7 +37,11 @@ function loadSharedDirectories() {
 rs.events[rs.RsEventsType.SHARED_DIRECTORIES] = {
   handler: (event) => {
     console.log('Shared Directories Event: ', event);
-    loadSharedDirectories();
+    switch(event.mEventCode) {
+    case futil.RsSharedDirectoriesEventCode.SHARED_DIRS_LIST_CHANGED:
+      loadSharedDirectories();
+      break;
+    }
   },
 };
 

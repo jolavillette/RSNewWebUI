@@ -23,7 +23,7 @@ const SharedDirectories = () => {
 const DownloadDirectory = () => {
   let dlDir = '';
   const setDir = () => {
-    rs.rsJsonApiRequest('rsFiles/setDownloadDirectory', {
+    rs.rsJsonApiRequest('/rsFiles/setDownloadDirectory', {
       path: dlDir,
     });
   };
@@ -48,7 +48,7 @@ const PartialsDirectory = () => {
   const setDir = () => {
     // const path = document.getElementById('partial-dir-input').value; // unused?
 
-    rs.rsJsonApiRequest('rsFiles/setPartialsDirectory', {
+    rs.rsJsonApiRequest('/rsFiles/setPartialsDirectory', {
       path: partialsDir,
     });
   };
@@ -76,7 +76,6 @@ const TransferOptions = () => {
   let maxUploadSlots = undefined;
   let strategy = undefined;
   let diskLimit = undefined;
-  let encryptionPolicy = undefined;
   let directDLPerm = undefined;
   const setMaxSimultaneousDownloads = () =>
     rs.rsJsonApiRequest('/rsFiles/setQueueSize', {
@@ -94,11 +93,6 @@ const TransferOptions = () => {
     rs.rsJsonApiRequest('/rsFiles/setFreeDiskSpaceLimit', {
       minimumFreeMB: parseInt(diskLimit),
     });
-  const setDefaultEncryption = () => {
-    rs.rsJsonApiRequest('/rsFiles/setDefaultEncryptionPolicy', {
-      policy: parseInt(encryptionPolicy),
-    });
-  };
   const setDirectDLPerm = () => {
     rs.rsJsonApiRequest('/rsFiles/setFilePermDirectDL', {
       perm: parseInt(directDLPerm),
@@ -112,9 +106,6 @@ const TransferOptions = () => {
         (res) => (maxUploadSlots = res.body.retval)
       );
       rs.rsJsonApiRequest('/rsFiles/freeDiskSpaceLimit', {}, (data) => (diskLimit = data.retval));
-      rs.rsJsonApiRequest('/rsFiles/defaultEncryptionPolicy').then(
-        (res) => (encryptionPolicy = res.body.retval)
-      );
       rs.rsJsonApiRequest('/rsFiles/filePermDirectDL').then(
         (res) => (directDLPerm = res.body.retval)
       );
@@ -153,31 +144,6 @@ const TransferOptions = () => {
             oninput: (e) => (diskLimit = e.target.value),
             onchange: setFreeLimit,
           }),
-          m('p', 'End-to-end encryption:'),
-          m(
-            'select',
-            {
-              value: encryptionPolicy,
-              oninput: (e) => (encryptionPolicy = e.target.value),
-              onchange: setDefaultEncryption,
-            },
-            [
-              m(
-                'option',
-                {
-                  value: util.RS_FILE_CTRL_ENCRYPTION_POLICY_STRICT,
-                },
-                'Enforced'
-              ),
-              m(
-                'option',
-                {
-                  value: util.RS_FILE_CTRL_ENCRYPTION_POLICY_PERMISSIVE,
-                },
-                'Accepted'
-              ),
-            ]
-          ),
           m('p', 'Allow Direct Download:'),
           m(
             'select',

@@ -123,7 +123,8 @@ function rsJsonApiRequest(
       if (result.status === 200) {
         callback(result.body, true);
       } else {
-        loginKey.isVerified = false;
+        if(result.status === 403 || result.status === 401)
+          loginKey.isVerified = false;
         callback(result, false);
         m.route.set('/');
       }
