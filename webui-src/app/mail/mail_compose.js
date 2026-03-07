@@ -139,7 +139,7 @@ const Layout = () => {
         const { identity: from, subject } = Data;
         const mailBodyElement = document.querySelector('#composerMailBody');
         const mailBody = `<div>${mailBodyElement.innerHTML}</div>`;
-        rs.rsJsonApiRequest('/rsMsgs/sendMail', { from, subject, mailBody, to, cc, bcc }).then(
+        rs.rsJsonApiRequest('/rsMail/sendMail', { from, subject, mailBody, to, cc, bcc }).then(
           (res) => {
             if (res.body.retval) {
               Object.keys(Data.recipients).forEach((recipientType) => {

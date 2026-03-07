@@ -9,7 +9,7 @@ const Layout = () => {
   return {
     oninit: (v) => {
       v.attrs.list.forEach(async (element) => {
-        const res = await rs.rsJsonApiRequest('/rsMsgs/getMessage', {
+        const res = await rs.rsJsonApiRequest('/rsMail/getMessage', {
           msgId: element.msgId,
         });
         if (res.body.retval) {

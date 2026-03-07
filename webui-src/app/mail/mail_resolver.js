@@ -20,7 +20,7 @@ const Messages = {
   todo: [],
   later: [],
   load() {
-    rs.rsJsonApiRequest('/rsMsgs/getMessageSummaries', { box: util.BOX_ALL }, (data) => {
+    rs.rsJsonApiRequest('/rsMail/getMessageSummaries', { box: util.BOX_ALL }, (data) => {
       Messages.all = data.msgList;
       Messages.inbox = Messages.all.filter(
         (msg) => (msg.msgflags & util.RS_MSG_BOXMASK) === util.RS_MSG_INBOX
