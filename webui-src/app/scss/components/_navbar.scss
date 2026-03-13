@@ -1,4 +1,9 @@
+@use 'sass:color';
 @use '../abstracts' as *;
+
+.active-link {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
 
 /* Navbar */
 .nav-menu {
@@ -41,7 +46,7 @@
       transition: 0ms;
 
       &:hover {
-        background-color: transparentize($light-color, 0.85);
+        background-color: color.adjust($light-color, $alpha: -0.85);
       }
 
       i.sidenav-icon {
@@ -54,7 +59,7 @@
 
     .item.item-selected {
       color: $primary-light-color;
-      background-color: transparentize($primary-light-color, 0.85);
+      background-color: color.adjust($primary-light-color, $alpha: -0.85);
       font-weight: medium;
     }
 
@@ -64,7 +69,7 @@
       padding: 0;
       top: 0;
       right: -1rem;
-      background: lighten($primary-color, 15%);
+      background: color.adjust($primary-color, $lightness: 15%);
       width: 1.5rem;
       height: 1.5rem;
       aspect-ratio: 1;
@@ -77,8 +82,16 @@
 
   &.collapsed {
     .nav-menu__logo {
-      & h5 {
-        display: none;
+      .logo-container {
+        @include flex(column, $align: center, $gap: 0.5rem);
+
+        &>*:not(img) {
+          display: block;
+        }
+      }
+
+      & .nav-menu__logo-text {
+        display: none !important;
       }
     }
 
@@ -89,8 +102,9 @@
         justify-content: center;
         transition: 300ms;
 
+        & span,
         & p {
-          display: none;
+          display: none !important;
         }
       }
     }
@@ -132,7 +146,7 @@
 }
 
 .sidebarquickview {
-  & > h6 {
+  &>h6 {
     padding: 0.5rem;
   }
 
@@ -170,5 +184,45 @@
 
   to {
     border-left: 5px solid #3ba4d7;
+  }
+}
+
+/* GLOBAL SIDEBAR TO TABS */
+@media (max-width: 700px) {
+  .tab-content {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100% !important;
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    white-space: nowrap !important;
+    border-bottom: 1px solid rgba(20, 20, 27, 0.1) !important;
+    background: white !important;
+    z-index: 50 !important;
+    flex-shrink: 0 !important;
+    height: auto !important;
+    padding: 0 !important;
+  }
+
+  .sidebar a {
+    display: inline-block !important;
+    padding: 0.8rem 1.2rem !important;
+    border-bottom: 3px solid transparent !important;
+    border-left: none !important;
+  }
+
+  .sidebar .selected-sidebar-link {
+    border-left: none !important;
+    border-bottom: 3px solid #3ba4d7 !important;
+    animation: none !important;
+  }
+
+  /* Hide quickview headings on mobile to save space if needed */
+  .sidebarquickview>h4,
+  .sidebarquickview>h6 {
+    display: none !important;
   }
 }

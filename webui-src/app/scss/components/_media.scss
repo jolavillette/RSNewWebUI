@@ -1,19 +1,23 @@
+@use 'sass:color';
 @use '../abstracts' as *;
 
 .media-item {
   display: flex;
   margin-top: 0.5rem;
   padding: 1rem;
-  border: 1px solid transparentize($dark-color, 0.9);
+  border: 1px solid color.adjust($dark-color, $alpha: -0.9);
   border-radius: 4px;
+
   &__details {
     flex-basis: 40%;
     @include flex($align: start, $gap: 0.5rem);
+
     & img {
       width: 6rem;
       object-fit: contain;
     }
   }
+
   &__desc {
     flex-basis: 60%;
   }

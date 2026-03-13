@@ -1,3 +1,4 @@
+@use 'sass:color';
 @use '../abstracts/colors' as *;
 
 .progress-bar {
@@ -8,6 +9,7 @@
   background-color: $light-color;
   border-radius: 20px;
   overflow: hidden;
+
   &__status {
     position: absolute;
     top: 0;
@@ -16,6 +18,7 @@
     color: $dark-color;
     background-color: $primary-color;
   }
+
   &__percent {
     position: absolute;
     inset: 0;
@@ -23,6 +26,7 @@
     width: fit-content;
     height: fit-content;
   }
+
   &-chunks {
     position: relative;
     margin-top: 0.5rem;
@@ -32,21 +36,27 @@
     border-radius: 0.25rem;
     overflow: hidden;
     background-color: $light-color;
+
     & .chunk {
       width: 100%;
+
       &[data-chunkVal='0'] {
-        background-color: transparentize($primary-light-color, 0.8);
+        background-color: color.adjust($primary-light-color, $alpha: -0.8);
       }
+
       &[data-chunkVal='1'] {
         background-color: $red-color;
       }
+
       &[data-chunkVal='2'] {
         background-color: $primary-color;
       }
+
       &[data-chunkVal='3'] {
         background-color: $golden-yellow-color;
       }
     }
+
     &__percent {
       position: absolute;
       inset: 0;

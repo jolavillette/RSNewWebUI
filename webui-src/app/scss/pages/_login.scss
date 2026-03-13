@@ -1,16 +1,16 @@
+@use 'sass:color';
 @use '../abstracts' as *;
 
 .login-page {
-  background-image: linear-gradient(
-    -45deg,
-    transparentize($primary-color, 0.25),
-    transparentize($primary-retro-color, 0.25)
-  );
+  background-image: linear-gradient(-45deg,
+      color.adjust($primary-color, $alpha: -0.25),
+      color.adjust($primary-retro-color, $alpha: -0.25));
   height: 100%;
   animation: fadein 0.5s;
+
   .login-container {
     background-color: white;
-    box-shadow: 3px 3px 5px transparentize($dark-color, 0.6);
+    box-shadow: 3px 3px 5px color.adjust($dark-color, $alpha: -0.6);
     margin: auto;
     position: relative;
     top: 100px;
@@ -27,21 +27,24 @@
     & * {
       margin-bottom: 1rem;
     }
-    & > img {
+
+    &>img {
       margin: 1rem 0 2rem;
     }
+
     & extra {
       margin: 0;
     }
-    & > a {
+
+    &>a {
       text-decoration: underline;
       cursor: pointer;
     }
   }
 
-  .extra > label,
-  .extra > br,
-  .extra > input {
+  .extra>label,
+  .extra>br,
+  .extra>input {
     margin-bottom: 0;
   }
 }

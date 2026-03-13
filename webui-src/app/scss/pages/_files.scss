@@ -279,3 +279,117 @@ table.friendsfiles td:nth-child(2) {
   }
   @include flex($justify: space-between);
 }
+
+/* FILES MODULE RESPONSIVENESS */
+@media (max-width: 700px) {
+
+  /* General Files Layout */
+  .file-view__body-details {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  /* File Detail Grid (Downloads/Uploads) */
+  .file-view__body-details-stat {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .file-view__body-details-stat span {
+    display: flex;
+    align-items: center;
+  }
+
+  /* Share Manager Table -> Cards */
+  .share-manager__table,
+  .share-manager__table thead,
+  .share-manager__table tbody,
+  .share-manager__table tr,
+  .share-manager__table td {
+    display: block;
+    width: 100% !important;
+  }
+
+  .share-manager__table thead {
+    display: none;
+    /* Hide header on mobile */
+  }
+
+  .share-manager__table tr {
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    background: white;
+  }
+
+  .share-manager__table td {
+    margin-bottom: 0.5rem;
+    border: none !important;
+    padding-left: 0 !important;
+  }
+
+  /* My Files / Friends Files Tables -> Cards */
+  table.myfiles,
+  table.myfiles tr,
+  table.myfiles td,
+  table.friendsfiles,
+  table.friendsfiles tr,
+  table.friendsfiles td {
+    display: block;
+    width: 100% !important;
+  }
+
+  table.myfiles th,
+  table.friendsfiles th {
+    display: none;
+  }
+
+  table.myfiles tr,
+  table.friendsfiles tr {
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    background: white;
+  }
+
+  /* Search Container Layout */
+  .file-search-container {
+    flex-direction: column;
+  }
+
+  .file-search-container__keywords {
+    flex-basis: auto;
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid rgba(20, 20, 27, 0.1);
+    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  /* Search results table -> cards */
+  .results-container,
+  .results-container thead,
+  .results-container tbody,
+  .results-container tr,
+  .results-container td {
+    display: block;
+    width: 100% !important;
+  }
+
+  .results-container thead {
+    display: none;
+  }
+
+  .results-container tr {
+    border-bottom: 1px solid #eee;
+    padding: 1rem 0;
+  }
+
+  .results-container td {
+    margin-bottom: 0.5rem;
+    word-break: break-all;
+  }
+}

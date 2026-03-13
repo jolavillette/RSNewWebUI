@@ -61,7 +61,7 @@ const navbar = () => {
                   },
                   title: rs.connectionState.status ? 'Connected to RetroShare Core' : 'Connection Lost',
                 }),
-                m('span.webui-version', { style: { fontSize: '0.7em', marginTop: '3px', color: '#888' } }, 'v108'),
+                m('span.webui-version', { style: { fontSize: '0.7em', marginTop: '3px', color: '#888' } }, 'v117'),
                 m('i.fas.fa-sync-alt.refresh-icon', {
                   style: { fontSize: '0.8em', marginTop: '2px', cursor: 'pointer', color: '#888' },
                   onclick: () => window.location.reload(true),

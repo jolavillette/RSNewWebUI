@@ -1,3 +1,4 @@
+@use 'sass:color';
 @use '../abstracts' as *;
 
 .homepage {
@@ -6,20 +7,25 @@
 
   .logo {
     @include flex($justify: center, $align: center);
+
     & img {
       width: 90px;
     }
+
     .retroshareText {
       @include flex(column, $align: center);
+
       & .retrotext {
         font-size: 36px;
         font-weight: 600;
         line-height: 1.125;
-        & > span {
+
+        &>span {
           color: $primary-retro-color;
         }
       }
-      & > b {
+
+      &>b {
         font-size: 14px;
         line-height: 1;
       }
@@ -28,30 +34,36 @@
 
   .certificate {
     @include flex(column, $gap: 4rem);
+
     &__heading {
       text-align: center;
-      & > h1 {
+
+      &>h1 {
         margin-bottom: 1rem;
       }
     }
+
     &__content {
       @include flex(column, $gap: 2rem);
       padding: 2rem;
       text-align: center;
-      border: 1.5px solid transparentize($primary-retro-color, 0.8);
+      border: 1.5px solid color.adjust($primary-retro-color, $alpha: -0.8);
       border-radius: 6px;
-      box-shadow: 0px 0px 8px 2px transparentize($dark-color, 0.95);
-      .rsId > p {
+      box-shadow: 0px 0px 8px 2px color.adjust($dark-color, $alpha: -0.95);
+
+      .rsId>p {
         margin-bottom: 0.5rem;
         color: $primary-retro-color;
       }
+
       .retroshareID {
         padding: 0.25rem;
         @include flex($align: center);
         justify-self: start;
         font-size: 1.25rem;
         border-radius: 4px;
-        background: transparentize($dark-color, 0.95);
+        background: color.adjust($dark-color, $alpha: -0.95);
+
         & .textArea {
           padding: 0;
           width: 100%;
@@ -62,10 +74,12 @@
           border: none;
           resize: none;
         }
+
         & i {
           color: $primary-retro-color;
         }
-        & > i {
+
+        &>i {
           margin: 0 0.5rem;
           cursor: pointer;
         }
@@ -76,24 +90,28 @@
         background: whitesmoke;
         @include flex($justify: center, $align: center, $gap: 0.5rem);
         border-radius: 4px;
-        border: 1px solid transparentize($dark-color, 0.5);
+        border: 1px solid color.adjust($dark-color, $alpha: -0.5);
         width: fit-content;
         cursor: pointer;
+
         &-container {
           display: grid;
           place-items: center;
         }
+
         &:hover {
           background: $light-color;
           border: 1px solid $dark-color;
         }
-        & > i {
+
+        &>i {
           font-size: 1.2rem;
           color: green;
         }
       }
-      .add-friend > h6,
-      .webhelp-container > h6 {
+
+      .add-friend>h6,
+      .webhelp-container>h6 {
         font-weight: normal;
         margin-bottom: 0.5rem;
       }

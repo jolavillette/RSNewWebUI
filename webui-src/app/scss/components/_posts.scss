@@ -1,3 +1,4 @@
+@use 'sass:color';
 @use '../abstracts' as *;
 
 .posts {
@@ -5,29 +6,34 @@
   margin-top: 1rem;
   flex-direction: column;
   overflow: auto;
+
   &__heading {
     @include flex(column, $justify: space-between);
   }
+
   &-container {
     height: 100%;
     padding: 1rem;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 2rem;
-    border: 1px solid transparentize($dark-color, 0.9);
+    border: 1px solid color.adjust($dark-color, $alpha: -0.9);
     border-radius: 4px;
     overflow: auto;
+
     &-card {
       min-height: 240px;
       flex-direction: column;
-      border: 1px solid transparentize($dark-color, 0.5);
+      border: 1px solid color.adjust($dark-color, $alpha: -0.5);
       border-radius: 4px;
       cursor: pointer;
       text-align: center;
+
       & img {
         flex-basis: 90%;
         object-fit: cover;
       }
+
       & p {
         padding: 0 0.125rem;
         flex-basis: 10%;

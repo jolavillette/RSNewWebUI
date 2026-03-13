@@ -225,9 +225,22 @@ const ChatLobbyModel = {
     newMsgs.forEach((msg) => {
       const key = this.getMessageKey(msg);
       if (!this.messageKeys.has(key)) {
-        this.messageKeys.add(key);
-        this.messages.push(m(Message, msg));
-        added = true;
+        // Near-duplicate check for messages without IDs (live events vs optimistic echo)
+        const text = msg.msg || msg.message || '';
+        const isNearDuplicate = this.messages.some((existingMsg) => {
+          const eAttrs = existingMsg.attrs;
+          const eText = eAttrs.msg || eAttrs.message || '';
+          return (
+            eText === text &&
+            Math.abs(eAttrs.sendTime - msg.sendTime) < 5 // 5 seconds window
+          );
+        });
+
+        if (!isNearDuplicate) {
+          this.messageKeys.add(key);
+          this.messages.push(m(Message, msg));
+          added = true;
+        }
       }
     });
 
@@ -275,19 +288,22 @@ const ChatLobbyModel = {
   setIdentity(lobbyId, nick) {
     rs.rsJsonApiRequest(
       '/rsChats/setIdentityForChatLobby',
-      {},
+      {
+        lobby_id: { xstr64: lobbyId },
+        nick: nick,
+      },
       () => m.route.set('/chat/:lobby', { lobby: lobbyId }),
-      true,
-      {},
-      JSON.parse,
-      () => '{"lobby_id":' + lobbyId + ',"nick":"' + nick + '"}'
+      true
     );
   },
   enterPublicLobby(lobbyId, nick) {
     // Set lobby nickname
     rs.rsJsonApiRequest(
       '/rsChats/joinVisibleChatLobby',
-      {},
+      {
+        lobby_id: { xstr64: lobbyId },
+        own_id: nick,
+      },
       () => {
         loadLobbyDetails(lobbyId, (info) => {
           ChatRoomsModel.subscribedRooms[lobbyId] = info;
@@ -303,16 +319,15 @@ const ChatLobbyModel = {
     // Unsubscribe
     rs.rsJsonApiRequest(
       '/rsChats/unsubscribeChatLobby',
-      {},
+      {
+        lobby_id: { xstr64: lobbyId },
+      },
       (data, success) => {
         if (success) {
           ChatRoomsModel.loadSubscribedRooms(follow);
         }
       },
-      true,
-      {},
-      JSON.parse,
-      () => '{"lobby_id":' + lobbyId + '}'
+      true
     );
   },
   chatId() {
@@ -425,6 +440,7 @@ const ChatLobbyModel = {
   },
   sendMessage(msg, onsuccess) {
     const cid = this.chatId();
+    // Optimistic echo for immediate feedback
     const echoMsg = {
       chat_id: cid,
       msg: msg,
@@ -435,21 +451,12 @@ const ChatLobbyModel = {
 
     rs.rsJsonApiRequest(
       '/rsChats/sendChat',
-      {},
+      {
+        id: cid,
+        msg: msg,
+      },
       (data, success) => {
         if (success) {
-          // adding own message to log
-          rs.events[15].handler(
-            {
-              mChatMessage: {
-                chat_id: this.chatId(),
-                msg,
-                sendTime: new Date().getTime() / 1000,
-                lobby_peer_gxs_id: this.currentLobby.gxs_id,
-              },
-            },
-            rs.events[15]
-          );
           onsuccess();
         }
       }
