@@ -124,7 +124,8 @@ const TransferOptions = () => {
               oninput: (e) => (strategy = e.target.value),
               onchange: setChunkStrat,
             },
-            ['Streaming', 'Random', 'Progressive'].map((val, i) =>
+            // FileChunksInfo::ChunkStrategy, in the order of its values
+            ['Sequential', 'Random', 'Progressive', 'Streaming'].map((val, i) =>
               m('option[value=' + i + ']', val)
             )
           ),
