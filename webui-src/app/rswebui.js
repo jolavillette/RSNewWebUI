@@ -150,7 +150,8 @@ function rsJsonApiRequest(
   headers = {},
   handleDeserialize = JSON.parse,
   handleSerialize = JSON.stringify,
-  config = null
+  config = null,
+  options = {}
 ) {
   headers['Accept'] = 'application/json';
   if (loginKey.isVerified) {
@@ -185,6 +186,7 @@ function rsJsonApiRequest(
       serialize: handleSerialize,
       headers,
       body: data,
+      timeout: options.timeout,
 
       xhr: config,
     })
@@ -203,10 +205,16 @@ function rsJsonApiRequest(
         //  is not a lost connection: only status 0, i.e. no HTTP response at
         //  all, is. Flipping the flag on every error made the status LED blink
         //  red on each optional endpoint that is probed.
-        connectionState.status = result.status !== 0;
+        //  Mithril reports a timed-out request as status 0, like a refused
+        //  connection. A request we gave up on says nothing about the core.
+        result.timedOut = result.status === 0 && options.timeout > 0
+          && performance.now() - startedAt >= options.timeout;
+        if (!result.timedOut) connectionState.status = result.status !== 0;
         if (result.status === 401 || result.status === 403) {
           setKeys(loginKey.username, loginKey.passwd, loginKey.url, false);
           m.route.set('/');
+        } else if (result.timedOut) {
+          console.warn('[RS] Request timed out:', path);
         } else if (result.status === 0) {
           console.error('[RS] Retroshare-jsonapi not available.');
         } else {
@@ -408,6 +416,9 @@ const userList = {
   },
   username: (id) => {
     if (!id) return '';
+    //  GXS writes an all zero id when a post carries no signature. There is no
+    //  identity to fetch, so every caller was printing the zeros.
+    if (/^0+$/.test(id)) return '[Unknown]';
     const entry = userList.userMap[id];
     const name = typeof entry === 'object' ? entry.name : entry;
 
@@ -537,12 +548,37 @@ function logon(loginHeader, displayAuthError, displayErrorMessage, successful) {
   });
 }
 
+//  The core sends times either as a plain number of seconds or wrapped in an
+//  xint64/xstr64 object, depending on the call.
+function getTimestampValue(ts) {
+  if (!ts) return 0;
+  if (typeof ts === 'object') {
+    if (ts.xint64 !== undefined) return ts.xint64;
+    if (ts.xstr64 !== undefined) return Number(ts.xstr64);
+    return 0;
+  }
+  return ts;
+}
+
+function formatTimestamp(ts) {
+  const val = getTimestampValue(ts);
+  if (!val || val === 0) return '???';
+  try {
+    const localDate = new Date(val * 1000);
+    const offset = localDate.getTimezoneOffset() * 60000;
+    return new Date(localDate.getTime() - offset).toISOString().replace('T', ' ').slice(0, 16);
+  } catch (e) {
+    return 'Invalid Date';
+  }
+}
+
 function formatBytes(bytes, decimals = 2) {
   if (bytes === 0) return '0 Bytes';
   const k = 1024;
   const dm = decimals < 0 ? 0 : decimals;
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  //  Below 1 the log is negative and there is no unit for it: stay in Bytes.
+  const i = Math.min(sizes.length - 1, Math.max(0, Math.floor(Math.log(bytes) / Math.log(k))));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 }
 
@@ -600,6 +636,8 @@ module.exports = {
   userList,
   loginKey,
   formatBytes,
+  formatTimestamp,
+  getTimestampValue,
   logout,
   cleanRetroshareId,
 };

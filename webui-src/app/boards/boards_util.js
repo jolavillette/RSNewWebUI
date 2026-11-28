@@ -2,6 +2,8 @@ const m = require('mithril');
 const rs = require('rswebui');
 const peopleUtil = require('people/people_util');
 const widget = require('widgets');
+const toast = require('toast');
+const icon = require('icon');
 
 const GROUP_SUBSCRIBE_ADMIN = 0x01; // means: you have the admin key for this group
 const GROUP_SUBSCRIBE_PUBLISH = 0x02; // means: you have the publish key for thiss group. Typical use: publish key in channels are shared with specific friends.
@@ -20,6 +22,8 @@ const Data = {
   DisplayBoards: {}, // boardID -> board info
   Posts: {}, // boardID, PostID -> {post, isSearched}
   Comments: {}, // threadID, msgID -> {Comment, showReplies}
+  loading: new Set(),
+  errors: {},
 };
 
 // Older Qt clients store board notes as rich HTML. Render them as readable,
@@ -43,15 +47,30 @@ function plainText(value) {
 }
 
 const BOARD_POST_BATCH_SIZE = 25;
+const BOARD_REQUEST_TIMEOUT_MS = 30000;
+
+function requestBoardContent(path, data) {
+  return rs.rsJsonApiRequest(path, data, undefined, true, {}, JSON.parse, JSON.stringify, null, {
+    timeout: BOARD_REQUEST_TIMEOUT_MS,
+  });
+}
+
+/**
+ * How a content request ended. Only a cut answer is worth asking again in
+ * smaller pieces: a slow core or an error would just fail again, slower.
+ */
+const BATCH_LOADED = 'loaded';
+const BATCH_CUT = 'cut';
+const BATCH_FAILED = 'failed';
 
 async function updateContent(content, boardid) {
   const requested = Array.isArray(content) ? content : [content];
   const msgIds = requested
     .map((item) => item.mMsgId || item.msgId || item)
     .filter(Boolean);
-  if (msgIds.length === 0) return false;
+  if (msgIds.length === 0) return BATCH_FAILED;
   try {
-    const res = await rs.rsJsonApiRequest('/rsPosted/getBoardContent', {
+    const res = await requestBoardContent('/rsPosted/getBoardContent', {
       boardId: boardid,
       contentsIds: msgIds,
     });
@@ -89,40 +108,46 @@ async function updateContent(content, boardid) {
           m.redraw();
         }
       }
-      return true;
+      return BATCH_LOADED;
     }
+    //  No answer at all: the core is gone, so stop loading the board.
+    if (!res || (res.status === 0 && !res.timedOut)) {
+      throw new Error('Could not load board posts. Please try again.');
+    }
+    //  The catch path of rsJsonApiRequest gives a cut 200 an empty body.
+    return res.status === 200 && res.body?.retval === undefined ? BATCH_CUT : BATCH_FAILED;
   } catch (err) {
     console.warn('updateContent error:', err);
+    throw err;
   }
-  return false;
 }
 
 // Same as the channel loader: a post can carry base64 media, and the JSON API
-// cuts a response it cannot flush in time. Retry a failed batch as two smaller
+// cuts a response it cannot flush in time. Retry a cut batch as two smaller
 // ones until the offending post is isolated, instead of dropping the 25 of them
-// on a single console.warn. Do not split when the core stopped answering, or
-// one batch would turn into 2N-1 doomed requests.
+// on a single console.warn. Any other failure is not split: against a slow or
+// failing core one batch would turn into 2N-1 doomed requests.
 async function updateContentBatch(contentIds, boardid) {
-  const loaded = await updateContent(contentIds, boardid);
-  if (loaded || contentIds.length <= 1 || !rs.connectionState.status) {
-    if (!loaded) {
-      console.warn('Unable to load board content item', contentIds[0]);
-    }
-    return;
+  const result = await updateContent(contentIds, boardid);
+  if (result === BATCH_LOADED) return true;
+  if (result !== BATCH_CUT || contentIds.length <= 1) {
+    console.warn('Unable to load board content item', contentIds[0]);
+    return false;
   }
 
   const middle = Math.ceil(contentIds.length / 2);
-  await updateContentBatch(contentIds.slice(0, middle), boardid);
-  await updateContentBatch(contentIds.slice(middle), boardid);
+  const firstLoaded = await updateContentBatch(contentIds.slice(0, middle), boardid);
+  const secondLoaded = await updateContentBatch(contentIds.slice(middle), boardid);
+  return firstLoaded && secondLoaded;
 }
 
 const inFlightBoards = {};
 
-async function updateDisplayBoards(keyid, details) {
+async function updateDisplayBoards(keyid, details, retry = false) {
   if (!keyid) return Promise.resolve();
 
   // 1. Fast path: if posts for this board are already loaded in memory, render instantly and do not re-fetch
-  if (Data.DisplayBoards[keyid] && Data.Posts[keyid] && Object.keys(Data.Posts[keyid]).length > 0) {
+  if (!retry && Data.DisplayBoards[keyid] && Data.Posts[keyid] && Object.keys(Data.Posts[keyid]).length > 0) {
     m.redraw();
     return Promise.resolve();
   }
@@ -132,11 +157,14 @@ async function updateDisplayBoards(keyid, details) {
     return inFlightBoards[keyid];
   }
 
+  Data.loading.add(keyid);
+  delete Data.errors[keyid];
+  m.redraw();
   inFlightBoards[keyid] = (async () => {
     try {
       // Fetch board info metadata if missing
       if (!Data.DisplayBoards[keyid]) {
-        const res1 = await rs.rsJsonApiRequest('/rsPosted/getBoardsInfo', {
+        const res1 = await requestBoardContent('/rsPosted/getBoardsInfo', {
           boardsIds: [keyid],
         });
         if (res1 && res1.body && res1.body.boardsInfo && res1.body.boardsInfo.length > 0) {
@@ -157,6 +185,8 @@ async function updateDisplayBoards(keyid, details) {
             all: details,
           };
           m.redraw();
+        } else {
+          throw new Error('Could not load board details. Please try again.');
         }
       }
 
@@ -167,29 +197,35 @@ async function updateDisplayBoards(keyid, details) {
       // Load lightweight post metadata first, then fetch complete posts newest
       // first in page-sized batches. The first page can render without waiting
       // for every image and older post in a large board.
-      const summariesRes = await rs.rsJsonApiRequest('/rsPosted/getBoardPostSummaries', {
+      const summariesRes = await requestBoardContent('/rsPosted/getBoardPostSummaries', {
         boardId: keyid,
       });
       const summaries = summariesRes && summariesRes.body && summariesRes.body.retval
         && Array.isArray(summariesRes.body.summaries)
         ? summariesRes.body.summaries
         : null;
+      if (summariesRes.status === 0 || summariesRes.status >= 400 && ![404, 405].includes(summariesRes.status)) {
+        throw new Error('Could not load board posts. Please try again.');
+      }
 
       if (summaries) {
         summaries.sort((a, b) => Number((b.mPublishTs && b.mPublishTs.xint64) || b.mPublishTs || 0)
           - Number((a.mPublishTs && a.mPublishTs.xint64) || a.mPublishTs || 0));
         for (let i = 0; i < summaries.length; i += BOARD_POST_BATCH_SIZE) {
-          await updateContentBatch(summaries.slice(i, i + BOARD_POST_BATCH_SIZE), keyid);
+          const batch = summaries.slice(i, i + BOARD_POST_BATCH_SIZE)
+            .filter((summary) => !Data.Posts[keyid][summary.mMsgId]);
+          if (batch.length && !await updateContentBatch(batch, keyid)) {
+            Data.errors[keyid] = 'Some posts could not be loaded. Try again.';
+          }
         }
       } else {
         // Compatibility fallback for RetroShare cores which do not yet expose
         // getBoardPostSummaries.
-        const resAll = await rs.rsJsonApiRequest('/rsPosted/getBoardAllContent', {
+        const resAll = await requestBoardContent('/rsPosted/getBoardAllContent', {
           boardId: keyid,
         });
-        const posts = resAll && resAll.body && resAll.body.retval
-          ? (resAll.body.posts || resAll.body.postList || [])
-          : [];
+        if (!resAll?.body?.retval) throw new Error('Could not load board posts. Please try again.');
+        const posts = resAll.body.posts || resAll.body.postList || [];
         posts.forEach((post) => {
           const msgId = (post.mMeta && post.mMeta.mMsgId) || post.mMsgId;
           if (msgId) Data.Posts[keyid][msgId] = { post, isSearched: true };
@@ -198,8 +234,11 @@ async function updateDisplayBoards(keyid, details) {
       }
     } catch (err) {
       console.warn('updateDisplayBoards network error for board:', keyid, err);
+      Data.errors[keyid] = err.message || 'Could not load board posts. Please try again.';
     } finally {
       delete inFlightBoards[keyid];
+      Data.loading.delete(keyid);
+      m.redraw();
     }
   })();
 
@@ -210,12 +249,14 @@ const BoardSummary = () => {
   return {
     view: (vnode) => {
       const details = vnode.attrs.details;
-      const bname = details.mGroupName || details.name || '';
+      const bname = details.mGroupName || details.name || 'Unnamed board';
+      const description = plainText(details.mDescription || details.description);
 
       return m(
-        'tr',
+        'tr.group-row',
         {
           key: details.mGroupId,
+          class: details.isSearched === false ? 'hidden' : '',
           onclick: () => {
             m.route.set('/boards/:tab/:mGroupId', {
               tab: vnode.attrs.category,
@@ -224,7 +265,20 @@ const BoardSummary = () => {
           },
         },
         [
-          m('td', bname),
+          m('td.group-row__name', m('.group-row__inner', [
+            m('.group-row__mark', icon('th-large')),
+            m('.group-row__text', [
+              m(m.route.Link, {
+                class: 'group-row__title',
+                href: `/boards/${vnode.attrs.category}/${details.mGroupId}`,
+                onclick: (event) => event.stopPropagation(),
+              }, bname),
+              description ? m('span.group-row__desc', description) : null,
+            ]),
+          ])),
+          m('td.group-row__posts', details.mVisibleMsgCount ?? 0),
+          m('td.group-row__activity', rs.getTimestampValue(details.mLastPost)
+            ? rs.formatTimestamp(details.mLastPost) : '—'),
         ]
       );
     },
@@ -234,10 +288,12 @@ const BoardSummary = () => {
 const BoardTable = () => {
   return {
     view: (vnode) =>
-      m('table.board-table', [
+      m('table.group-table', [
         m('thead', [
           m('tr', [
-            m('th', 'Board Name'),
+            m('th[scope=col]', 'Board'),
+            m('th.group-row__posts[scope=col]', 'Posts'),
+            m('th.group-row__activity[scope=col]', 'Last post'),
           ]),
         ]),
         vnode.children,
@@ -245,30 +301,34 @@ const BoardTable = () => {
   };
 };
 
+//  Module level: the search field is gone while a board is open, and the list
+//  refresh brings new objects. Both must still show the filter that applies.
+let boardsSearchString = '';
+
+function filterBoards(list, value) {
+  const query = (value || '').toLowerCase();
+  (list || []).forEach((board) => {
+    const name = (board.mGroupName || board.name || '').toLowerCase();
+    board.isSearched = !query || name.includes(query);
+  });
+}
+
 const SearchBar = () => {
-  let searchString = '';
   return {
-    view: (vnode) =>
-      m('.search-bar', [
-        m('input[type=text][placeholder=Search Boards...]', {
-          value: searchString,
-          oninput: (e) => {
-            searchString = e.target.value;
-            const query = searchString.toLowerCase();
-            if (vnode.attrs.list) {
-              vnode.attrs.list.forEach((board) => {
-                const name = (board.mGroupName || board.name || '').toLowerCase();
-                board.isSearched = name.includes(query);
-              });
-            }
-          },
-        }),
-      ]),
+    view: (vnode) => {
+      filterBoards(vnode.attrs.list, boardsSearchString);
+      return m(widget.SearchField, {
+        placeholder: 'Search boards',
+        value: boardsSearchString,
+        onclear: () => { boardsSearchString = ''; },
+        oninput: (e) => { boardsSearchString = e.target.value; },
+      });
+    },
   };
 };
 
-function popupmessage(message, modalClass = '') {
-  widget.popupMessage(message, modalClass);
+function popupmessage(message, modalClass = '', options = {}) {
+  widget.popupMessage(message, modalClass, options);
 }
 
 //  Replace the cached post only once the core's background tally has moved
@@ -307,7 +367,7 @@ async function voteForPost(postGrpId, postMsgId, voteType, voterId = null) {
       //  one place: /rsIdentity/getOwnIds is deprecated and answers 404.
       const ownIds = await peopleUtil.ownIds();
       if (ownIds.length === 0) {
-        alert('No identity found to vote.');
+        toast.warning('Create an identity before voting');
         return false;
       }
       authorId = ownIds[0];
