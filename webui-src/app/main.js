@@ -4,7 +4,7 @@ const preferences = require('preferences');
 
 //  Bumped at every change of the web UI; shown in the rail, the phone header
 //  and the Debug page.
-const WEBUI_VERSION = 'v188';
+const WEBUI_VERSION = 'v189';
 
 const login = require('login');
 const rs = require('rswebui');
