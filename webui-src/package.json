@@ -13,7 +13,7 @@
     "icons": "node ./make-src/icons.js",
     "fonts": "node ./make-src/fonts.js"
   },
-  "license": "ISC",
+  "license": "AGPL-3.0-or-later",
   "engines": {
     "node": ">=24"
   },
